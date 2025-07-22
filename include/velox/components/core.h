@@ -1,20 +1,20 @@
 #pragma once
 
-#include "../Math.h"
 #include "../util.h"
 #include <SDL3/SDL.h>
+#include <glm/glm.hpp>
 #include <string>
+
+#include "../resourceIds.h"
 
 namespace vl {
 
-struct Position {
-  Vec2 pos{};
-};
-struct Velocity {
-  Vec2 vel{};
+struct Transform {
+  glm::vec2 pos{};
+  glm::vec2 vel{};
 };
 struct SpriteRenderer {
-  SDL_Texture *tex = nullptr;
+  TextureID id;
   int zIndex = 0;
   SDL_FRect src{};
   SDL_FRect dst{};
@@ -22,22 +22,25 @@ struct SpriteRenderer {
   bool useRenderScale = false;
 };
 struct TextRenderer {
-  const char *fontPath;
+  FontID id;
   std::string text;
-  Vec2 pos;
+  glm::vec2 pos;
   SDL_Color color = vl::BLACK;
   int size;
   int zIndex;
   bool centered = false;
   bool pixelFont = false;
   bool useRenderScale = false;
+  bool isUi = true;
 };
 struct RectRenderer {
-  Vec2 pos;
+  glm::vec2 pos;
   float width, height;
   SDL_Color color;
   float alpha = 255;
   int zIndex = 0;
+  bool useRenderScale = true;
+  bool isUi = false;
 };
 
 } // namespace vl

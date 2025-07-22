@@ -20,11 +20,14 @@ dependencies = [
 ]
 
 src = [
+  'src/main.cpp',
+  'src/renderWindow.cpp',
+  'src/assetManager.cpp'
 ]
 
 
 velox = library(
-  'core',
+  'velox',
   src,
   include_directories: velox_inc,
   dependencies: [sdl_dep, image_dep, ttf_dep],

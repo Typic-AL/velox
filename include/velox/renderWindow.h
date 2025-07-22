@@ -2,8 +2,6 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <SDL3/SDL_render.h>
-#include <SDL3/SDL_video.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
@@ -13,8 +11,10 @@
 #include <utility>
 #include <vector>
 
-#include "Math.h"
+#include "glm/glm.hpp"
 #include "util.h"
+
+#include "resourceIDs.h"
 
 namespace vl {
 
@@ -24,16 +24,14 @@ struct RenderCommand {
   SDL_Texture *texture;
   SDL_FRect dstRect;
   SDL_FRect srcRect;
-  Vec2 pos;
   int zIndex = 0;
   bool useRenderScale = true;
   bool isUi = false;
-  RenderCommand(SDL_Texture *tex, SDL_FRect dst, SDL_FRect src, Vec2 pos,
-                int zIndex, bool isUi, bool useRenderScale) {
+  RenderCommand(SDL_Texture *tex, SDL_FRect dst, SDL_FRect src, int zIndex,
+                bool isUi, bool useRenderScale) {
     texture = tex;
     dstRect = dst;
     srcRect = src;
-    this->pos = pos;
     this->zIndex = zIndex;
     this->isUi = isUi;
     this->useRenderScale = useRenderScale;
@@ -42,98 +40,73 @@ struct RenderCommand {
 
 class RenderWindow {
 private:
-  SDL_Window *window = nullptr;
-  SDL_Renderer *renderer = nullptr;
+  SDL_Window *m_window = nullptr;
+  SDL_Renderer *m_renderer = nullptr;
 
-  int width, height;
-  int refWidth, refHeight;
-  SDL_RendererLogicalPresentation presentationMode;
-  int uiLayer = 100;
-  float displayScale = 1;
+  int m_width, m_height;
+  int m_refWidth, m_refHeight;
+  SDL_RendererLogicalPresentation m_presentationMode;
+  int m_uiLayer = 100;
+  float m_displayScale = 1;
 
-  std::vector<RenderCommand> renderQueue;
-  std::unordered_map<std::pair<TTF_Font *, std::string>, SDL_Texture *,
-                     PairHash<TTF_Font *, std::string>>
-      ttfTexCache;
-  std::unordered_map<std::pair<std::string, int>, TTF_Font *,
-                     PairHash<std::string, int>>
-      ttfFontCache;
-  std::unordered_map<const char *, SDL_Texture *> texCache;
+  std::vector<RenderCommand> m_renderQueue;
+  std::unordered_map<
+      TextureID, std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)>>
+      m_texCache;
+  std::unordered_map<FontID,
+                     std::unique_ptr<TTF_Font, decltype(&TTF_CloseFont)>>
+      m_fontCache;
 
-  bool useIntDrawing = false;
-
-public:
-  RenderWindow() { g_window = this; }
-  ~RenderWindow() {
-    for (const auto &tex : ttfTexCache)
-      SDL_DestroyTexture(tex.second);
-
-    for (const auto &tex : texCache)
-      SDL_DestroyTexture(tex.second);
-
-    for (const auto &fnt : ttfFontCache)
-      TTF_CloseFont(fnt.second);
+  static void destroyTexture(SDL_Texture *tex) {
+    if (tex)
+      SDL_DestroyTexture(tex);
+  }
+  static void closeFont(TTF_Font *font) {
+    if (font)
+      TTF_CloseFont(font);
   }
 
+  bool m_useIntDrawing = false;
+
+public:
+  RenderWindow() {}
+  ~RenderWindow() {}
+
   bool init(const char *title, int w, int h);
-  void beginDrawing(SDL_Color color);
+  void clear(SDL_Color color);
   void endDrawing();
-  void render(Vec2 pos, SDL_Texture *tex);
 
-  void addToQueue(const SDL_FRect &src, const Vec2 &pos, SDL_Texture *tex,
-                  const int &zIndex, bool isUi = false,
-                  bool useRenderScale = true);
-  void addToQueueDirect(const SDL_FRect &src, const SDL_FRect &dst,
-                        SDL_Texture *tex, const int &zIndex, bool isUi = false,
-                        bool useRenderScale = true);
-  void addTextToQueue(const char *fntPath, std::string text, Vec2 pos, int size,
-                      SDL_Color color, int zIndex, bool centered = false,
-                      bool pixelFont = false, bool useRenderScale = true);
-
-  void addRectToQueue(const Vec2 &pos, float width, float height,
-                      const SDL_Color &color, const int &zIndex,
-                      float alpha = 255);
-  void addRectToQueueDirect(const SDL_FRect &rect, const SDL_Color &color,
-                            const int &zIndex, float alpha = 255);
+  void drawTexture(SDL_FRect src, SDL_FRect dst, TextureID id, int zIndex,
+                   bool isUi);
+  void drawText(FontID id, std::string text, glm::vec2 pos, int size,
+                SDL_Color color, int zIndex, bool centered, bool pixelFont,
+                bool useRenderScale);
+  void drawRect(SDL_FRect rect, SDL_Color color, int zIndex, float alpha);
+  void generateFontTexture(FontID id, int size);
+  void generateTextTexture(FontID id, std::string text);
 
   void clearTexCache() {
-    ttfTexCache.clear();
-    ttfFontCache.clear();
-    texCache.clear();
+    m_texCache.clear();
+    m_fontCache.clear();
   }
 
   void setReferenceResolution(int w, int h,
                               SDL_RendererLogicalPresentation mode) {
-    SDL_SetRenderLogicalPresentation(renderer, w, h, mode);
-    refWidth = w;
-    refHeight = h;
-    presentationMode = mode;
+    SDL_SetRenderLogicalPresentation(m_renderer, w, h, mode);
+    m_refWidth = w;
+    m_refHeight = h;
+    m_presentationMode = mode;
   }
 
   void renderTilemap(SDL_Texture *tileset, const Tilemap &map);
 
-  int getScreenWidth() { return width; }
-  int getScreenHeight() { return height; }
+  int getScreenWidth() { return m_width; }
+  int getScreenHeight() { return m_height; }
 
-  void enableIntDrawing() { useIntDrawing = true; }
-  void enableVsync() { SDL_SetRenderVSync(renderer, 1); }
+  void enableIntDrawing() { m_useIntDrawing = true; }
+  void enableVsync() { SDL_SetRenderVSync(m_renderer, 1); }
 
-  SDL_Texture *loadTexture(const char *filepath) {
-    if (texCache.find(filepath) != texCache.end())
-      return texCache[filepath];
-
-    SDL_Texture *tex = IMG_LoadTexture(renderer, filepath);
-    if (!tex) {
-      std::cerr << "[RenderWindow] Failed to load texture: " << SDL_GetError()
-                << "\n";
-    }
-
-    texCache[filepath] = tex;
-
-    return tex;
-  }
-
-  SDL_Window *getWin() { return window; }
-  SDL_Renderer *getRen() { return renderer; }
+  SDL_Window *getWin() { return m_window; }
+  SDL_Renderer *getRen() { return m_renderer; }
 };
 } // namespace vl

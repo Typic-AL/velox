@@ -8,9 +8,6 @@
 #include <string>
 
 namespace vl {
-class RenderWindow;
-
-inline RenderWindow *g_window = nullptr;
 
 inline SDL_Color WHITE = SDL_Color{255, 255, 255, 255};
 inline SDL_Color BLACK = SDL_Color{0, 0, 0, 255};
