@@ -20,24 +20,6 @@ namespace vl {
 
 struct Tilemap;
 
-struct RenderCommand {
-  SDL_Texture *texture;
-  SDL_FRect dstRect;
-  SDL_FRect srcRect;
-  int zIndex = 0;
-  bool useRenderScale = true;
-  bool isUi = false;
-  RenderCommand(SDL_Texture *tex, SDL_FRect dst, SDL_FRect src, int zIndex,
-                bool isUi, bool useRenderScale) {
-    texture = tex;
-    dstRect = dst;
-    srcRect = src;
-    this->zIndex = zIndex;
-    this->isUi = isUi;
-    this->useRenderScale = useRenderScale;
-  }
-};
-
 class RenderWindow {
 private:
   SDL_Window *m_window = nullptr;
@@ -49,7 +31,6 @@ private:
   int m_uiLayer = 100;
   float m_displayScale = 1;
 
-  std::vector<RenderCommand> m_renderQueue;
   std::unordered_map<
       TextureID, std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)>>
       m_texCache;
@@ -74,7 +55,7 @@ public:
 
   bool init(const char *title, int w, int h);
   void clear(SDL_Color color);
-  void endDrawing();
+  void present() {SDL_RenderPresent(m_renderer);}
 
   void drawTexture(SDL_FRect src, SDL_FRect dst, TextureID id, int zIndex,
                    bool isUi);
@@ -96,6 +77,14 @@ public:
     m_refWidth = w;
     m_refHeight = h;
     m_presentationMode = mode;
+  }
+
+  int getReferenceWidth() const { return m_refWidth; }
+
+  int getReferenceHeight() const { return m_refHeight; }
+
+  SDL_RendererLogicalPresentation getPresentationMode() const {
+    return m_presentationMode;
   }
 
   void renderTilemap(SDL_Texture *tileset, const Tilemap &map);

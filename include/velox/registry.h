@@ -1,7 +1,5 @@
 #pragma once
-#include <any>
-#include <typeindex>
-#include <typeinfo>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -39,8 +37,22 @@ public:
     return getComponentStorage<T>().count(e);
   }
 
+  template <typename Func, typename... Args>
+  void registerSystem(Func &&func, Args &&...args) {
+    auto boundFunc =
+        std::bind(std::forward<Func>(func), this, std::forward<Args>(args)...);
+    m_systems.push_back([f = std::move(boundFunc)]() { f(); });
+  }
+
+  void runSystems() {
+      for(auto &sys : m_systems)
+        sys();
+  }
+
 private:
   Entity nextEntityId = 0;
+
+  std::vector<std::function<void()>> m_systems;
 
   template <typename T> std::unordered_map<Entity, T> &getComponentStorage() {
     static std::unordered_map<Entity, T> storage;

@@ -19,6 +19,8 @@ bool RenderWindow::init(const char *title, int w, int h) {
 
   m_width = w;
   m_height = h;
+  m_refWidth = w;
+  m_refHeight = h;
 
   return true;
 }

@@ -2,12 +2,15 @@
 #include "fkYAML/fkyaml_fwd.hpp"
 #include <fstream>
 #include <iostream>
+#include <memory>
+
+#include "velox/renderWindow.h"
 
 namespace vl {
 
 bool AssetManager::parseManifest() {
   try {
-    std::ifstream fileStream("assets.yml");
+    std::ifstream fileStream(m_assetsPath);
     if (!fileStream.is_open()) {
       throw std::runtime_error("[Asset Manager] Failed to open assets file");
     }
@@ -79,5 +82,30 @@ void AssetManager::parseFonts(const fkyaml::node &config) {
         fontEntry["path"].get_value<std::string>();
   }
 }
+
+SDL_Texture *AssetManager::idToTex(TextureID id) {
+  SDL_Surface *surface = IMG_Load(m_texMap[id].c_str());
+  if (m_texCache.find(id) != m_texCache.end())
+    return m_texCache[id].get();
+  if (!surface)
+    SDL_Log("[Asset Manager] Unable to load image %s! SDL_image Error: %s\n",
+            m_texMap[id].c_str(), SDL_GetError());
+  else {
+    SDL_Texture *tex =
+        SDL_CreateTextureFromSurface(m_renderWindow->getRen(), surface);
+    if (!tex) {
+      SDL_Log("Unable to create texture from %s! SDL Error: %s\n",
+              m_texMap[id].c_str(), SDL_GetError());
+    }
+
+    SDL_DestroySurface(surface);
+    m_texCache[id] =
+        std::unique_ptr<SDL_Texture, decltype(texDeleter)>(tex, texDeleter);
+    return tex;
+  }
+  return nullptr;
+}
+
+TTF_Font *idToFont(FontID id, int size) { return nullptr; }
 
 } // namespace vl

@@ -19,7 +19,8 @@ struct SpriteRenderer {
   SDL_FRect src{};
   SDL_FRect dst{};
   bool isUi = false;
-  bool useRenderScale = false;
+  bool useRenderScale = true;
+  SDL_ScaleMode scaleMode = SDL_SCALEMODE_LINEAR;
 };
 struct TextRenderer {
   FontID id;
