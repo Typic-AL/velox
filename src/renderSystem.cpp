@@ -1,4 +1,4 @@
-#include "velox/renderSystem.h"
+#include "velox/systems/renderSystem.h"
 #include "velox/renderWindow.h"
 
 #include "velox/components/core.h"
@@ -48,9 +48,9 @@ void drawRenderQueue(RenderContext &ctx) {
   }
 }
 
-void renderSystem(Registry *reg, RenderContext &ctx) {
-  for (auto &e : reg->view<SpriteRenderer>()) {
-    SpriteRenderer &sprite = reg->get<SpriteRenderer>(e);
+void renderSystem(Registry &reg, RenderContext &ctx) {
+  for (auto &e : reg.view<SpriteRenderer>()) {
+    SpriteRenderer &sprite = reg.get<SpriteRenderer>(e);
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
     ctx.renderQueue.emplace_back(tex, sprite.dst, sprite.src, sprite.zIndex,

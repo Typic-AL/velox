@@ -1,5 +1,6 @@
 #include "velox/engine.h"
-#include "velox/renderSystem.h"
+#include "velox/systems/renderSystem.h"
+#include "velox/systems/core.h"
 
 #include "velox/time.h"
 
@@ -15,14 +16,18 @@ bool Engine::init(const char *title, int width, int height) {
 
 void Engine::update() {
     while(Physics::shouldUpdate()) {
-        m_currentReg->runSystems();
+        m_reg.runSystems();
+        applyVelocity(m_reg);
+        syncPositions(m_reg);
     }
    Physics::stepPhysics();
+
+
 }
 
 void Engine::render() {
     m_window.clear(WHITE);
-    renderSystem(m_currentReg, renderCtx);
+    renderSystem(m_reg, renderCtx);
     m_window.present();
 }
 void Engine::beginFrame() {

@@ -33,7 +33,7 @@ struct RenderContext {
   RenderContext(RenderWindow *win, AssetManager * assets) : window(win), assetMan(assets), renderQueue(std::vector<RenderCommand>()) {}
 };
 
-void renderSystem(Registry *reg, RenderContext &ctx);
+void renderSystem(Registry &reg, RenderContext &ctx);
 void sortRenderQueue(std::vector<RenderCommand> &renderQueue);
 void drawRenderQueue(RenderContext &ctx);
 

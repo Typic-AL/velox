@@ -4,8 +4,9 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
 
-#include "../resourceIds.h"
+#include "../resourceIDs.h"
 
 namespace vl {
 
@@ -43,5 +44,10 @@ struct RectRenderer {
   bool useRenderScale = true;
   bool isUi = false;
 };
+
+struct PositionUpdater {
+   std::vector<std::pair<float *, float *>> syncTargets;
+};
+
 
 } // namespace vl
