@@ -27,9 +27,10 @@ inline void syncPositionWithTransform(Registry &reg, Entity e, float *x, float *
 }
 
 inline void applyVelocity(Registry &reg) {
-    for(auto e : reg.view<Transform>()) {
-        Transform &tranform = reg.get<Transform>(e);
-        tranform.pos += tranform.vel;
+    for(auto e : reg.view<Rigidbody, Transform>()) {
+        Transform &transform = reg.get<Transform>(e);
+        Rigidbody &rigidbody = reg.get<Rigidbody>(e);
+        transform.pos += rigidbody.vel;
     }
 }
 

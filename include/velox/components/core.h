@@ -12,7 +12,9 @@ namespace vl {
 
 struct Transform {
   glm::vec2 pos{};
-  glm::vec2 vel{};
+};
+struct Rigidbody {
+    glm::vec2 vel{};
 };
 struct SpriteRenderer {
   TextureID id;

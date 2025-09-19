@@ -19,6 +19,7 @@ src = [
   'src/assetManager.cpp',
   'src/renderSystem.cpp',
   'src/engine.cpp',
+  'src/collisionSystem.cpp',
 ]
 
 velox = library(

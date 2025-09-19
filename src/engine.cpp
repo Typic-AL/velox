@@ -1,6 +1,7 @@
 #include "velox/engine.h"
 #include "velox/systems/renderSystem.h"
 #include "velox/systems/core.h"
+#include "velox/systems/collisionSystem.h"
 
 #include "velox/time.h"
 
@@ -17,6 +18,7 @@ bool Engine::init(const char *title, int width, int height) {
 void Engine::update() {
     while(Physics::shouldUpdate()) {
         m_reg.runSystems();
+        sweepAndPrune(m_reg);
         applyVelocity(m_reg);
         syncPositions(m_reg);
     }
