@@ -13,8 +13,17 @@ namespace vl {
 struct Transform {
   glm::vec2 pos{};
 };
+
+enum BodyType {
+    STATIC,
+    DYNAMIC,
+    KINEMATIC
+};
+
 struct Rigidbody {
     glm::vec2 vel{};
+    BodyType type = BodyType::DYNAMIC;
+    float mass = 100.0f;
 };
 struct SpriteRenderer {
   TextureID id;

@@ -3,6 +3,7 @@
 #include "velox/components/core.h"
 #include "velox/registry.h"
 #include <iostream>
+#include <numbers>
 
 namespace vl {
 
@@ -21,37 +22,73 @@ void resolveCollision(Registry &reg, Entity e1, Entity e2) {
     glm::vec2 &vel1 = reg.get<Rigidbody>(e1).vel;
     glm::vec2 &vel2 = reg.get<Rigidbody>(e2).vel;
 
+    Rigidbody &body1 = reg.get<Rigidbody>(e1);
+    Rigidbody &body2 = reg.get<Rigidbody>(e2);
+
+    // Kinematic bodies have infinite mass for collision purposes
+    float invMass1 = (body1.type == BodyType::DYNAMIC) ? 1.0f / body1.mass : 0.0f;
+    float invMass2 = (body2.type == BodyType::DYNAMIC) ? 1.0f / body2.mass : 0.0f;
+
+    // Skip if both are non-dynamic (static or kinematic)
+    if (invMass1 == 0.0f && invMass2 == 0.0f) return;
+
     float overlapX = std::min(rect1.x + rect1.w, rect2.x + rect2.w) - std::max(rect1.x, rect2.x);
     float overlapY = std::min(rect1.y + rect1.h, rect2.y + rect2.h) - std::max(rect1.y, rect2.y);
 
+    glm::vec2 normal;
+    float penetration;
+
     if (overlapX < overlapY) {
-        float separation = overlapX * 0.5f;
-        if (rect1.x < rect2.x) {
-            pos1.x -= separation;
-            pos2.x += separation;
-        } else {
-            pos1.x += separation;
-            pos2.x -= separation;
-        }
-        vel1.x *= -0.5f;
-        vel2.x *= -0.5f;
+        normal = (rect1.x < rect2.x) ? glm::vec2(-1, 0) : glm::vec2(1, 0);
+        penetration = overlapX;
     } else {
-        float separation = overlapY * 0.5f;
-        if (rect1.y < rect2.y) {
-            pos1.y -= separation;
-            pos2.y += separation;
-        } else {
-            pos1.y += separation;
-            pos2.y -= separation;
-        }
-        vel1.y *= -0.5f;
-        vel2.y *= -0.5f;
+        normal = (rect1.y < rect2.y) ? glm::vec2(0, -1) : glm::vec2(0, 1);
+        penetration = overlapY;
     }
 
-    //rect1.x = pos1.x;
-    //rect1.y = pos1.y;
-    //rect2.x = pos2.x;
-    //rect2.y = pos2.y;
+    // Position correction (only dynamic objects move)
+    float totalInvMass = invMass1 + invMass2;
+    if (totalInvMass > 0) {
+        glm::vec2 correction = normal * (penetration / totalInvMass);
+        pos1 += correction * invMass1;
+        pos2 -= correction * invMass2;
+    }
+
+    // Velocity resolution (only dynamic objects get their velocity changed)
+    glm::vec2 relativeVelocity = vel2 - vel1;
+    float separatingVelocity = glm::dot(relativeVelocity, normal);
+
+    if (separatingVelocity > 0) return;
+
+    float restitution = 0.3f;
+    float impulse = -(1 + restitution) * separatingVelocity / totalInvMass;
+
+    glm::vec2 impulseVector = normal * impulse;
+    vel1 -= impulseVector * invMass1;  // Only changes if dynamic
+    vel2 += impulseVector * invMass2;  // Only changes if dynamic
+}
+
+void handleOnEnter(Registry &reg, Entity &entity1, Entity &entity2) {
+
+
+    Collider &col1 = reg.get<Collider>(entity1);
+    Collider &col2 = reg.get<Collider>(entity2);
+    if(col1.isTrigger && !prevFrameCols.contains({entity1, entity2}))
+        col1.onEnter(entity1, entity2);
+    if(col2.isTrigger && !prevFrameCols.contains({entity2, entity1}))
+        col2.onEnter(entity2, entity1);
+
+}
+
+void handleOnExit(Registry &reg, Entity &entity1, Entity &entity2) {
+
+    Collider &col1 = reg.get<Collider>(entity1);
+    Collider &col2 = reg.get<Collider>(entity2);
+    if(col1.isTrigger && !currentFrameCols.contains({entity1, entity2}) && prevFrameCols.contains({entity1, entity2}))
+        col1.onExit(entity1, entity2);
+    if(col2.isTrigger && !currentFrameCols.contains({entity2, entity1}) && prevFrameCols.contains({entity2, entity1}))
+        col2.onExit(entity2, entity1);
+
 }
 
 void sweepAndPrune(Registry &reg) {
@@ -78,12 +115,38 @@ void sweepAndPrune(Registry &reg) {
             if (rectA.y + rectA.h < rectB.y || rectA.y > rectB.y + rectB.h)
                 continue;
 
+
+
+
             if(checkLayer(colA, colB)) {
+                currentFrameCols.insert({entities[i], entities[j]});
+                currentFrameCols.insert({entities[j], entities[i]});
+
+                if(colA.isTrigger || colB.isTrigger) {
+                    handleOnEnter(reg, entities[i], entities[j]);
+
+                    continue;
+                }
+
                 resolveCollision(reg, entities[i], entities[j]);
+
+                if (colA.onCollide != nullptr && !colA.isTrigger)
+                    colA.onCollide(entities[i], entities[j]);
+                if (colB.onCollide != nullptr && !colB.isTrigger)
+                    colB.onCollide(entities[i], entities[j]);
+
+
             }
 
         }
     }
+
+    for(auto [e1,e2] : prevFrameCols) {
+        handleOnExit(reg, e1, e2);
+    }
+
+    prevFrameCols = currentFrameCols;
+    currentFrameCols.clear();
 }
 
 }

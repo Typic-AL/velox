@@ -18,8 +18,8 @@ bool Engine::init(const char *title, int width, int height) {
 void Engine::update() {
     while(Physics::shouldUpdate()) {
         m_reg.runSystems();
-        sweepAndPrune(m_reg);
         applyVelocity(m_reg);
+        sweepAndPrune(m_reg);
         syncPositions(m_reg);
     }
    Physics::stepPhysics();

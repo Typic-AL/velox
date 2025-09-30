@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 #include <functional>
+#include <unordered_map>
 #include "velox/entity.h"
 
 namespace vl {
@@ -13,6 +14,9 @@ struct Collider {
   CollisionCallback onCollide = {};
   int layer = 0;
   int mask = ~0;
+  bool isTrigger = false;
+  CollisionCallback onEnter = {};
+  CollisionCallback onExit = {};
 };
 
 inline int createlayerMask(std::vector<int> layers, bool exclude = false) {
@@ -22,4 +26,5 @@ inline int createlayerMask(std::vector<int> layers, bool exclude = false) {
     }
     return mask;
 }
+
 }
