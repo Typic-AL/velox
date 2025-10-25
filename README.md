@@ -50,7 +50,7 @@ Not every aspect of this engine has logic separted from data however. Classes su
 
 **This engine is designed to be used as a Meson subproject using the Meson build system**
 
-***Currently building only works on Linux and macOS***
+***Currently building is designed for Linux and macOS***
 
 Add this engine to your project's subprojects directory - symlink is fine too:
 
@@ -59,6 +59,13 @@ git clone https://github.com/Typic-AL/velox subprojects/velox
 ```
 Then in your meson.build:
 ```meson
+project(
+  'your_game',
+  'cpp',
+  version: '1',
+  meson_version: '>= 1.3.0',
+  default_options: ['cpp_std=c++20'],
+)
 sdl_dep = dependency('sdl3')
 image_dep = dependency('sdl3-image')
 ttf_dep = dependency('sdl3-ttf')
@@ -84,7 +91,7 @@ meson compile -C build
 ```c++
 #include <velox/engine.h>
 
-int main(int arc, char *argv[]) {
+int main(int argc, char *argv[]) {
   vl::Engine engine;
   engine.init("My Game", 1280, 720);
 
