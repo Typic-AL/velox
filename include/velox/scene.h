@@ -10,7 +10,6 @@ namespace vl {
 class SceneManager {
 private:
     std::unordered_map<std::string, std::function<void(Registry &)>> initFuncs;
-    std::vector<void *> sceneCalls;
     Registry &m_reg;
 public:
     SceneManager(Registry &reg) : m_reg(reg) {}

@@ -5,20 +5,8 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include <iostream>
-#include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include "glm/glm.hpp"
-#include "util.h"
-
-#include "resourceIDs.h"
-
 namespace vl {
 
-struct Tilemap;
 
 class RenderWindow {
 private:
@@ -35,7 +23,10 @@ private:
 
 public:
   RenderWindow() {}
-  ~RenderWindow() {}
+  ~RenderWindow() {
+    SDL_DestroyRenderer(m_renderer);
+    SDL_DestroyWindow(m_window);
+  }
 
   bool init(const char *title, int w, int h);
   void clear(SDL_Color color);
@@ -56,8 +47,6 @@ public:
   SDL_RendererLogicalPresentation getPresentationMode() const {
     return m_presentationMode;
   }
-
-  void renderTilemap(SDL_Texture *tileset, const Tilemap &map);
 
   int getScreenWidth() { return m_width; }
   int getScreenHeight() { return m_height; }

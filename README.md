@@ -34,7 +34,7 @@ This architecture enables:
 - Easy parallelization opportunities
 - Flexible composition of game objects
 - Minimal memory overhead
-  
+
 Not every aspect of this engine has logic separted from data however. Classes such as the engine, asset manager, and registry are designed this way to make using them a lot more straightforward, especially because of how often these are designed to be used when creating a game.
 
 ---
@@ -150,7 +150,7 @@ This engine is currently **in development**. Core systems are functional but the
 
 **Language**: C++
 
-**Libraries**: SDL3, fkYAML, nlohmann json
+**Libraries**: SDL3, fkYAML, nlohmann json, glm
 
 **Architecture**: Entity Component System
 

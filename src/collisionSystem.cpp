@@ -2,8 +2,6 @@
 #include "velox/components/collider.h"
 #include "velox/components/core.h"
 #include "velox/registry.h"
-#include <iostream>
-#include <numbers>
 
 namespace vl {
 

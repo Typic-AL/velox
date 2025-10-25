@@ -2,6 +2,7 @@
 #include "velox/systems/renderSystem.h"
 #include "velox/systems/core.h"
 #include "velox/systems/collisionSystem.h"
+#include "velox/systems/animationSystem.h"
 
 #include "velox/time.h"
 
@@ -29,6 +30,7 @@ void Engine::update() {
 
 void Engine::render() {
     m_window.clear(WHITE);
+    animateSprites(m_reg);
     renderSystem(m_reg, renderCtx);
     m_window.present();
 }

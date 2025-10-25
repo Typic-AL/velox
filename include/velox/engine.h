@@ -20,6 +20,7 @@ public:
     Engine() {
         m_reg.emplaceResource<Input>();
         m_reg.setResource(m_sceneMan);
+        m_reg.setResource(m_assetMan);
     }
    ~Engine() {}
   bool init(const char *title, int width, int height);

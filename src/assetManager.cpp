@@ -4,6 +4,11 @@
 #include <iostream>
 #include <memory>
 
+#include "nlohmann/json_fwd.hpp"
+#include "nlohmann/json.hpp"
+
+using json = nlohmann::json;
+
 #include "velox/renderWindow.h"
 
 namespace vl {
@@ -20,6 +25,7 @@ bool AssetManager::parseManifest() {
 
     parseTextures(config);
     parseFonts(config);
+    parseAnims(config);
 
     return true;
   } catch (const fkyaml::exception &e) {
@@ -83,6 +89,31 @@ void AssetManager::parseFonts(const fkyaml::node &config) {
   }
 }
 
+void AssetManager::parseAnims(const fkyaml::node &config) {
+    if (!config.contains("animations") || !config["animations"].is_sequence()) {
+        std::cout << "[Asset Manager] No 'animations' section found or it's not a "
+                     "sequence\n";
+        return;
+      }
+
+      const fkyaml::node &fontNode = config["animations"];
+      for (const auto &animEntry : fontNode) {
+        if (!animEntry.is_mapping()) {
+          std::cerr << "[Asset Manager] Unexpected non-map node in 'animations' entry\n";
+          continue;
+        }
+        if (!animEntry.contains("id") || !animEntry["id"].is_string()) {
+          std::cerr << "[Asset Manager] Malformed animation entry (missing an 'id', "
+                       "'path', or wrong type)\n";
+          continue;
+        }
+
+        m_animMap[animEntry["id"].get_value<std::string>()] =
+            animEntry["path"].get_value<std::string>();
+      }
+}
+
+
 SDL_Texture *AssetManager::idToTex(TextureID id) {
     if (m_texCache.find(id) != m_texCache.end())
         return m_texCache[id].get();
@@ -107,5 +138,57 @@ SDL_Texture *AssetManager::idToTex(TextureID id) {
 }
 
 TTF_Font *idToFont(FontID id, int size) { return nullptr; }
+
+const SpriteAnimation &AssetManager::idToAnim(AnimID id) {
+    if(m_animCache.find(id) != m_animCache.end())
+        return m_animCache[id];
+
+    std::string fileID = "";
+    std::string animKey = id;
+    bool isSet = id.find("::") != std::string::npos;
+    if(isSet) {
+        size_t pos = id.find("::");
+        fileID = id.substr(0, pos);
+        animKey = id.substr(pos + 2, id.length());
+    }
+
+    std::ifstream file(m_animMap[fileID]);
+    if (!file.is_open()) {
+          throw std::runtime_error("[Asset Manager] Failed to open animation file for " + id);
+    }
+
+    json data = json::parse(file);
+
+    SDL_Texture *sheet = idToTex(data["TextureID"]);
+    int rows = data["rows"];
+    int cols = data["columns"];
+
+    if(isSet)
+        data = data[animKey];
+
+    SpriteAnimation anim;
+    anim.fps = data["fps"];
+    anim.loop = data["loop"];
+
+    float sizeX, sizeY;
+
+    SDL_GetTextureSize(sheet, &sizeX, &sizeY);
+    int rowSize = sizeY / rows;
+    int colSize = sizeX / cols;
+
+    for (auto& frameData : data["frames"]) {
+        int row = frameData[0];
+        int col = frameData[1];
+
+        float posX = colSize * col;
+        float posY = rowSize * row;
+
+        anim.frames.emplace_back(posX, posY, colSize, rowSize);
+    }
+
+    m_animCache[id] = std::move(anim);
+
+    return m_animCache[id];
+}
 
 } // namespace vl
