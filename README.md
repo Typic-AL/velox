@@ -7,8 +7,6 @@
 [![C++](https://img.shields.io/badge/C++-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)]()
 [![Status](https://img.shields.io/badge/Status-In_Development-yellow?style=for-the-badge)]()
 
-*Currently under active development*
-
 </div>
 
 ---
@@ -141,18 +139,6 @@ This engine is currently **in development**. Core systems are functional but the
 - Tilemap support via Tiled
 - Serialization system
 - UI system
-
----
-
-
-
-## Technical Details
-
-**Language**: C++
-
-**Libraries**: SDL3, fkYAML, nlohmann json, glm
-
-**Architecture**: Entity Component System
 
 ---
 
