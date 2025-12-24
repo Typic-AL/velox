@@ -21,6 +21,7 @@ src = [
   'src/engine.cpp',
   'src/collisionSystem.cpp',
   'src/animation.cpp',
+  'src/input.cpp'
 ]
 
 velox = library(

@@ -14,16 +14,12 @@ struct Transform {
   glm::vec2 pos{};
 };
 
-enum BodyType {
-    STATIC,
-    DYNAMIC,
-    KINEMATIC
-};
+enum BodyType { STATIC, DYNAMIC, KINEMATIC };
 
 struct Rigidbody {
-    glm::vec2 vel{};
-    BodyType type = BodyType::DYNAMIC;
-    float mass = 100.0f;
+  glm::vec2 vel{};
+  BodyType type = BodyType::DYNAMIC;
+  float mass = 100.0f;
 };
 struct SpriteRenderer {
   TextureID id;
@@ -34,6 +30,7 @@ struct SpriteRenderer {
   bool useRenderScale = true;
   SDL_ScaleMode scaleMode = SDL_SCALEMODE_LINEAR;
 };
+
 struct TextRenderer {
   FontID id;
   std::string text;
@@ -57,8 +54,7 @@ struct RectRenderer {
 };
 
 struct PositionUpdater {
-   std::vector<std::pair<float *, float *>> syncTargets;
+  std::vector<std::pair<float &, float &>> syncTargets;
 };
-
 
 } // namespace vl
