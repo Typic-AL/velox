@@ -1,6 +1,7 @@
 #pragma once
 
 #include "glm/glm.hpp"
+#include "velox/renderWindow.h"
 #include <SDL3/SDL.h>
 
 #include <iostream>
@@ -8,10 +9,10 @@
 
 namespace vl {
 
-using MouseButton = int;
+enum class MouseButton { LEFT, RIGHT };
 
-inline MouseButton LMB = 0;
-inline MouseButton RMB = 1;
+inline constexpr MouseButton LMB = MouseButton::LEFT;
+inline constexpr MouseButton RMB = MouseButton::RIGHT;
 
 class Input {
 private:
@@ -21,9 +22,10 @@ private:
   SDL_MouseButtonFlags m_mouseData;
   SDL_MouseButtonFlags m_prevMouseData;
   glm::vec2 m_mousePos;
+  RenderWindow &window;
 
 public:
-  Input() {
+  Input(RenderWindow &window) : window(window) {
     m_keyboard = SDL_GetKeyboardState(&m_numKeys);
 
     m_prevKeyboard.resize(m_numKeys, false);
@@ -43,6 +45,9 @@ public:
 
   void updateMouseData() {
     m_mouseData = SDL_GetMouseState(&m_mousePos.x, &m_mousePos.y);
+    m_mousePos.x /= (float)window.getScreenWidth() / window.getReferenceWidth();
+    m_mousePos.y /=
+        (float)window.getScreenHeight() / window.getReferenceHeight();
   }
 
   bool getKeyDown(SDL_Scancode key) { return m_keyboard[key]; }
@@ -50,6 +55,7 @@ public:
   bool getMouseDown(MouseButton mouseButton) const;
   bool wasMouseJustPressed(MouseButton mouseButton) const;
   bool wasMouseJustReleased(MouseButton mouseButton) const;
+  glm::vec2 getMousePos() { return m_mousePos; }
 };
 
 } // namespace vl

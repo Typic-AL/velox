@@ -1,4 +1,5 @@
 #include "velox/engine.h"
+#include "velox/components/ui.h"
 #include "velox/systems/animationSystem.h"
 #include "velox/systems/collisionSystem.h"
 #include "velox/systems/core.h"
@@ -20,6 +21,7 @@ void Engine::update() {
 
   while (Physics::shouldUpdate()) {
     m_reg.getResource<Input>().updateMouseData();
+    handleButtonPresses(m_reg, m_reg.getResource<Input>());
     m_reg.runSystems();
     applyVelocity(m_reg);
     sweepAndPrune(m_reg);

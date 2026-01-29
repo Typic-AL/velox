@@ -19,7 +19,7 @@ private:
 
 public:
   Engine() {
-    m_reg.emplaceResource<Input>();
+    m_reg.emplaceResource<Input>(m_window);
     m_reg.setResource(m_sceneMan);
     m_reg.setResource(m_assetMan);
   }

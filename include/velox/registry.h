@@ -13,6 +13,12 @@ class Registry {
 public:
   Entity create() { return nextEntityId++; }
 
+  template <typename... Args> Entity createWith(Args &&...components) {
+    Entity e = create();
+    (addComponent(e, components), ...);
+    return e;
+  }
+
   template <typename T> void addComponent(Entity e, T component) {
     getComponentStorage<T>()[e] = component;
   }
