@@ -31,6 +31,7 @@ struct UITransform {
 struct UIButton {
   SDL_FRect rect;
   ButtonCallback callback;
+  bool pressed = false;
 };
 
 void handleButtonPresses(Registry &reg, Input &input);
