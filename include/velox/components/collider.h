@@ -1,16 +1,19 @@
 #pragma once
 
+#include "velox/entity.h"
 #include <SDL3/SDL.h>
 #include <functional>
+#include <glm/glm.hpp>
 #include <unordered_map>
-#include "velox/entity.h"
 
 namespace vl {
 
 using CollisionCallback = std::function<void(Entity, Entity)>;
 
 struct Collider {
-  SDL_FRect rect;
+  float width;
+  float height;
+  glm::vec2 offset{0, 0};
   CollisionCallback onCollide = {};
   int layer = 0;
   int mask = ~0;
@@ -20,11 +23,11 @@ struct Collider {
 };
 
 inline int createlayerMask(std::vector<int> layers, bool exclude = false) {
-    int mask = exclude ? 0 : ~0;
-    for (int layer : layers) {
-        mask |= ( (exclude ? 0 : 1) << layer);
-    }
-    return mask;
+  int mask = exclude ? 0 : ~0;
+  for (int layer : layers) {
+    mask |= ((exclude ? 0 : 1) << layer);
+  }
+  return mask;
 }
 
-}
+} // namespace vl

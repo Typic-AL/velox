@@ -49,12 +49,16 @@ void drawRenderQueue(RenderContext &ctx) {
 }
 
 void renderSystem(Registry &reg, RenderContext &ctx) {
-  for (auto &e : reg.view<SpriteRenderer>()) {
+  for (auto &e : reg.view<SpriteRenderer, Transform>()) {
     SpriteRenderer &sprite = reg.get<SpriteRenderer>(e);
+    Transform &transform = reg.get<Transform>(e);
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
-    ctx.renderQueue.emplace_back(tex, sprite.dst, sprite.src, sprite.zIndex,
-                                 sprite.isUi, sprite.useRenderScale);
+    ctx.renderQueue.emplace_back(tex,
+                                 SDL_FRect{transform.pos.x, transform.pos.y,
+                                           sprite.width, sprite.height},
+                                 sprite.src, sprite.zIndex, sprite.isUi,
+                                 sprite.useRenderScale);
   }
 
   sortRenderQueue(ctx.renderQueue);

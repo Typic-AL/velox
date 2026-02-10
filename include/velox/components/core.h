@@ -25,7 +25,8 @@ struct SpriteRenderer {
   TextureID id;
   int zIndex = 0;
   SDL_FRect src{};
-  SDL_FRect dst{};
+  float width;
+  float height;
   bool isUi = false;
   bool useRenderScale = true;
   SDL_ScaleMode scaleMode = SDL_SCALEMODE_LINEAR;
@@ -51,10 +52,6 @@ struct RectRenderer {
   int zIndex = 0;
   bool useRenderScale = true;
   bool isUi = false;
-};
-
-struct PositionUpdater {
-  std::vector<std::pair<float &, float &>> syncTargets;
 };
 
 } // namespace vl

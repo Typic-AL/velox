@@ -25,7 +25,6 @@ void Engine::update() {
     m_reg.runSystems();
     applyVelocity(m_reg);
     sweepAndPrune(m_reg);
-    syncPositions(m_reg);
   }
   Physics::stepPhysics();
 
