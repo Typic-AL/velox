@@ -1,6 +1,7 @@
 #include "velox/components/ui.h"
 #include "velox/input.h"
 #include "velox/registry.h"
+#include "velox/renderWindow.h"
 
 namespace vl {
 
@@ -27,6 +28,48 @@ void handleButtonPresses(Registry &reg, Input &input) {
 
     button.callback(reg);
     button.pressed = false;
+  }
+}
+
+void anchorTransform(Registry &reg, UIBounds &bounds, Transform &transform,
+                     Anchor anchor) {
+  RenderWindow &window = reg.getResource<RenderWindow>();
+  float sw = window.getReferenceWidth();
+  float sh = window.getReferenceHeight();
+  float hw = bounds.w / 2.0f;
+  float hh = bounds.h / 2.0f;
+
+  switch (anchor) {
+  case Anchor::TOP_LEFT:
+    break;
+  case Anchor::TOP_CENTER:
+    transform.pos.x += sw / 2.0f - hw;
+    break;
+  case Anchor::TOP_RIGHT:
+    transform.pos.x += sw - bounds.w;
+    break;
+  case Anchor::CENTER_LEFT:
+    transform.pos.y += sh / 2.0f - hh;
+    break;
+  case Anchor::CENTER:
+    transform.pos.x += sw / 2.0f - hw;
+    transform.pos.y += sh / 2.0f - hh;
+    break;
+  case Anchor::CENTER_RIGHT:
+    transform.pos.x += sw - bounds.w;
+    transform.pos.y += sh / 2.0f - hh;
+    break;
+  case Anchor::BOTTOM_LEFT:
+    transform.pos.y += sh - bounds.h;
+    break;
+  case Anchor::BOTTOM_CENTER:
+    transform.pos.x += sw / 2.0f - hw;
+    transform.pos.y += sh - bounds.h;
+    break;
+  case Anchor::BOTTOM_RIGHT:
+    transform.pos.x += sw - bounds.w;
+    transform.pos.y += sh - bounds.h;
+    break;
   }
 }
 

@@ -21,7 +21,7 @@ void Engine::update() {
 
   while (Physics::shouldUpdate()) {
     m_reg.getResource<Input>().updateMouseData();
-    handleButtonPresses(m_reg, m_reg.getResource<Input>());
+    handleButtonPresses(m_reg, m_input);
     m_reg.runSystems();
     applyVelocity(m_reg);
     sweepAndPrune(m_reg);

@@ -4,12 +4,14 @@
 #include <glm/glm.hpp>
 
 #include "../registry.h"
+#include "velox/components/core.h"
 #include "velox/input.h"
 #include <functional>
 
 namespace vl {
 
 using ButtonCallback = std::function<void(Registry &)>;
+using UIBounds = SDL_FRect;
 
 enum class Anchor {
   TOP_LEFT,
@@ -23,11 +25,6 @@ enum class Anchor {
   BOTTOM_RIGHT
 };
 
-struct UITransform {
-  Anchor anchor;
-  glm::vec2 offset;
-};
-
 struct UIButton {
   SDL_FRect rect;
   ButtonCallback callback;
@@ -35,5 +32,7 @@ struct UIButton {
 };
 
 void handleButtonPresses(Registry &reg, Input &input);
+void anchorTransform(Registry &reg, UIBounds &bounds, Transform &transform,
+                     Anchor anchor);
 
 } // namespace vl

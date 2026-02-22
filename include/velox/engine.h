@@ -16,12 +16,14 @@ private:
   RenderContext renderCtx{&m_window, &m_assetMan};
   Registry m_reg;
   SceneManager m_sceneMan = SceneManager(m_reg);
+  Input m_input = Input(m_window);
 
 public:
   Engine() {
-    m_reg.emplaceResource<Input>(m_window);
+    m_reg.setResource(m_input);
     m_reg.setResource(m_sceneMan);
     m_reg.setResource(m_assetMan);
+    m_reg.setResource(m_window);
   }
   ~Engine() {}
   bool init(const char *title, int width, int height);
