@@ -28,6 +28,8 @@ void Engine::update() {
   }
   Physics::stepPhysics();
 
+  interpolatePosition(m_reg);
+
   m_reg.getResource<Input>().reset();
 }
 

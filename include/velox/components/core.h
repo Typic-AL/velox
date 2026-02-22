@@ -12,6 +12,11 @@ namespace vl {
 
 struct Transform {
   glm::vec2 pos{};
+  glm::vec2 prevPos{};
+  glm::vec2 lPos{};
+
+  Transform() : pos(0, 0), prevPos(0, 0), lPos(0, 0) {}
+  Transform(glm::vec2 pos) : pos(pos), prevPos(pos), lPos(pos) {}
 };
 
 enum BodyType { STATIC, DYNAMIC, KINEMATIC };

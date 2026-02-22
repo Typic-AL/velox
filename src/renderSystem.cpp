@@ -55,7 +55,7 @@ void renderSystem(Registry &reg, RenderContext &ctx) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
     ctx.renderQueue.emplace_back(tex,
-                                 SDL_FRect{transform.pos.x, transform.pos.y,
+                                 SDL_FRect{transform.lPos.x, transform.lPos.y,
                                            sprite.width, sprite.height},
                                  sprite.src, sprite.zIndex, sprite.isUi,
                                  sprite.useRenderScale);
