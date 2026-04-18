@@ -103,7 +103,7 @@ void handleOnExit(Registry &reg, Entity &entity1, Entity &entity2) {
 
 void sweepAndPrune(Registry &reg) {
   std::vector<Entity> entities =
-      std::move(reg.view<Collider, Transform, Rigidbody>());
+      reg.view<Collider, Transform, Rigidbody>().entities;
   if (entities.size() < 2)
     return;
 

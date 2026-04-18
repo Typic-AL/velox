@@ -6,8 +6,7 @@
 namespace vl {
 
 void handleButtonPresses(Registry &reg, Input &input) {
-  for (auto &b : reg.view<UIButton>()) {
-    UIButton &button = reg.get<UIButton>(b);
+  for (auto [button] : reg.view<UIButton>()) {
 
     glm::vec2 mousePos = input.getMousePos();
     SDL_FPoint mousePoint = {mousePos.x, mousePos.y};

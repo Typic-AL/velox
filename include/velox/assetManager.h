@@ -5,15 +5,15 @@
 
 #include "components/animation.h"
 
-#include <fkYAML/fkyaml_fwd.hpp>
-#include <fkYAML/node.hpp>
-
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 #include "resourceIDs.h"
 #include "util.h"
+
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
 
 namespace vl {
 
@@ -44,13 +44,13 @@ private:
   std::unordered_map<FontID, std::string> m_fontMap;
   std::unordered_map<AnimID, std::string> m_animMap;
 
-  std::string m_assetsPath = "assets.yml";
+  std::string m_assetsPath = "assets.json";
 
   RenderWindow *m_renderWindow = nullptr;
 
-  void parseTextures(const fkyaml::node &config);
-  void parseFonts(const fkyaml::node &config);
-  void parseAnims(const fkyaml::node &config);
+  void parseTextures(const json &config);
+  void parseFonts(const json &config);
+  void parseAnims(const json &config);
 
 public:
   AssetManager(RenderWindow *renderWindow) : m_renderWindow(renderWindow) {}

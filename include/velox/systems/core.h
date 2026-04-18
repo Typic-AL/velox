@@ -8,18 +8,15 @@
 namespace vl {
 
 inline void applyVelocity(Registry &reg) {
-  for (auto e : reg.view<Rigidbody, Transform>()) {
-    Transform &transform = reg.get<Transform>(e);
-    Rigidbody &rigidbody = reg.get<Rigidbody>(e);
-    transform.prevPos = transform.pos;
-    transform.pos += rigidbody.vel;
+  for (auto [rb, t] : reg.view<Rigidbody, Transform>()) {
+    t.prevPos = t.pos;
+    t.pos += rb.vel;
   }
 }
 
 inline void interpolatePosition(Registry &reg) {
-  for (auto e : reg.view<Rigidbody, Transform>()) {
-    Transform &transform = reg.get<Transform>(e);
-    transform.lPos = glm::mix(transform.prevPos, transform.pos, Time::alpha);
+  for (auto [rb, t] : reg.view<Rigidbody, Transform>()) {
+    t.lPos = glm::mix(t.prevPos, t.pos, Time::alpha);
   }
 }
 

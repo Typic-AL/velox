@@ -18,8 +18,7 @@ inline bool buttonPressed(Registry reg, UIButton &button) {
 }
 
 inline void buttonSystem(Registry &reg) {
-  for (auto &e : reg.view<UIButton>()) {
-    UIButton button = reg.get<UIButton>(e);
+  for (auto [button] : reg.view<UIButton>()) {
     if (buttonPressed(reg, button))
       button.callback(reg);
   }

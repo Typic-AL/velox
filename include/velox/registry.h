@@ -1,15 +1,18 @@
 #pragma once
 
-#include <any>
 #include <functional>
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
 
+#include "componentStorage.h"
 #include "entity.h"
+#include "velox/sparseSet.h"
 
 namespace vl {
+
+class Registry;
 
 class Registry {
 public:
@@ -22,35 +25,77 @@ public:
   }
 
   template <typename T> void addComponent(Entity e, T component) {
-    getComponentStorage<T>()[e] = component;
+    getComponentStorage<T>().insert(e, component);
   }
 
   template <typename T> T &get(Entity e) {
-    return getComponentStorage<T>().at(e);
+    return getComponentStorage<T>().get(e);
   }
 
-  template <typename... Components> std::vector<Entity> view() {
+  template <typename... Components> struct ViewProxy {
+    Registry &reg;
+    std::vector<Entity> entities;
+
+    template <typename... Tags> ViewProxy &with() {
+      std::erase_if(entities,
+                    [&](Entity e) { return (!reg.has<Tags>(e) && ...); });
+
+      return *this;
+    }
+
+    template <bool WithEntity> struct Iterator {
+      Registry &reg;
+      std::vector<Entity>::iterator it;
+
+      auto operator*() {
+        if constexpr (WithEntity)
+          return std::tuple<Components &..., Entity>{
+              reg.get<Components>(*it)..., *it};
+        else
+          return std::tuple<Components &...>{reg.get<Components>(*it)...};
+      }
+
+      Iterator &operator++() {
+        ++it;
+        return *this;
+      }
+      bool operator!=(const Iterator &o) { return it != o.it; }
+    };
+
+    Iterator<false> begin() { return {reg, entities.begin()}; }
+    Iterator<false> end() { return {reg, entities.end()}; }
+
+    struct EntityView {
+      Registry &reg;
+      std::vector<Entity> entities;
+
+      Iterator<true> begin() { return {reg, entities.begin()}; }
+      Iterator<true> end() { return {reg, entities.end()}; }
+    };
+
+    EntityView withEntity() { return {reg, std::move(entities)}; }
+  };
+
+  template <typename... Components> ViewProxy<Components...> view() {
     // Compile-time check
     static_assert(sizeof...(Components) > 0,
                   "Must provide at least one component type");
 
-    // Start with the smallest component set as base (for optimization)
     auto &firstStorage = getComponentStorage<
         std::tuple_element_t<0, std::tuple<Components...>>>();
-
     std::vector<Entity> result;
 
-    for (auto &[entity, _] : firstStorage) {
-      if ((hasComponent<Components>(entity) && ...)) {
+    for (auto entity : firstStorage.denseEntities) {
+      if ((has<Components>(entity) && ...)) {
         result.push_back(entity);
       }
     }
 
-    return result;
+    return ViewProxy<Components...>{*this, std::move(result)};
   }
 
-  template <typename T> bool hasComponent(Entity e) {
-    return getComponentStorage<T>().count(e);
+  template <typename T> bool has(Entity e) {
+    return getComponentStorage<T>().has(e);
   }
 
   template <typename Func, typename... Args>
@@ -112,20 +157,19 @@ private:
   std::vector<std::function<void()>> m_systems;
   std::unordered_map<std::type_index, std::shared_ptr<void>> m_resources;
 
-  std::unordered_map<std::type_index, std::any> componentStorages;
+  std::unordered_map<std::type_index, std::unique_ptr<ComponentPool>>
+      componentStorages;
 
   // template <typename T> std::unordered_map<Entity, T> &getComponentStorage()
   // { static std::unordered_map<Entity, T> storage; return storage;
   // }
-  template <typename T> std::unordered_map<Entity, T> &getComponentStorage() {
-    std::type_index type = std::type_index(typeid(T));
+  template <typename T> SparseSet<T> &getComponentStorage() {
+    std::unique_ptr<ComponentPool> &ptr =
+        componentStorages[std::type_index(typeid(T))];
 
-    if (!componentStorages.contains(type)) {
-      componentStorages[type] = std::unordered_map<Entity, T>();
-    }
-
-    return std::any_cast<std::unordered_map<Entity, T> &>(
-        componentStorages[type]);
+    if (!ptr)
+      ptr = std::make_unique<ComponentStorage<T>>();
+    return static_cast<ComponentStorage<T> *>(ptr.get())->data;
   }
 };
 } // namespace vl

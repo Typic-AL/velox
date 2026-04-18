@@ -33,4 +33,8 @@ velox = library(
   install: true,
 )
 
-velox_dep = declare_dependency(include_directories: velox_inc, link_with: velox)
+velox_dep = declare_dependency(
+  include_directories: velox_inc,
+  link_with: velox,
+  dependencies: [sdl_dep, image_dep, ttf_dep],
+)

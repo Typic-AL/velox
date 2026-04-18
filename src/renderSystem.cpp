@@ -49,9 +49,7 @@ void drawRenderQueue(RenderContext &ctx) {
 }
 
 void renderSystem(Registry &reg, RenderContext &ctx) {
-  for (auto &e : reg.view<SpriteRenderer, Transform>()) {
-    SpriteRenderer &sprite = reg.get<SpriteRenderer>(e);
-    Transform &transform = reg.get<Transform>(e);
+  for (auto [sprite, transform] : reg.view<SpriteRenderer, Transform>()) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
     ctx.renderQueue.emplace_back(tex,
