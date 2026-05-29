@@ -122,7 +122,54 @@ SDL_Texture *AssetManager::idToTex(TextureID id) {
   return nullptr;
 }
 
-TTF_Font *idToFont(FontID id, int size) { return nullptr; }
+TTF_Font *AssetManager::idToFont(FontID id, int size) {
+  auto key = std::make_pair(id, size);
+  auto it = m_fontCache.find(key);
+  if (it != m_fontCache.end())
+    return it->second.get();
+  auto pathIt = m_fontMap.find(id);
+  if (pathIt == m_fontMap.end()) {
+    SDL_Log("[Asset Manager] Unknown font id: %s\n", id.c_str());
+    return nullptr;
+  }
+  TTF_Font *font = TTF_OpenFont(pathIt->second.c_str(), size);
+  if (!font) {
+    SDL_Log("[Asset Manager] Failed to open font %s: %s\n",
+            pathIt->second.c_str(), SDL_GetError());
+    return nullptr;
+  }
+  m_fontCache[key] =
+      std::unique_ptr<TTF_Font, decltype(fontDeleter)>(font, fontDeleter);
+  return font;
+}
+
+SDL_Texture *AssetManager::getTextTex(const std::string &text, FontID id,
+                                           int size, SDL_Color color) {
+  TextKey key{text, id, size, color};
+  auto it = m_textCache.find(key);
+  if (it != m_textCache.end())
+    return it->second.get();
+  TTF_Font *font = idToFont(id, size);
+  if (!font)
+    return nullptr;
+  SDL_Surface *surface = TTF_RenderText_Blended(font, text.c_str(), text.size(), color);
+  if (!surface) {
+    SDL_Log("[Asset Manager] Failed to render text \"%s\": %s\n", text.c_str(),
+            SDL_GetError());
+    return nullptr;
+  }
+  SDL_Texture *tex =
+      SDL_CreateTextureFromSurface(m_renderWindow->getRen(), surface);
+  SDL_DestroySurface(surface);
+  if (!tex) {
+    SDL_Log("[Asset Manager] Failed to create texture for text \"%s\": %s\n",
+            text.c_str(), SDL_GetError());
+    return nullptr;
+  }
+  m_textCache[key] =
+      std::unique_ptr<SDL_Texture, decltype(texDeleter)>(tex, texDeleter);
+  return tex;
+}
 
 const SpriteAnimation &AssetManager::idToAnim(AnimID id) {
   if (m_animCache.find(id) != m_animCache.end())

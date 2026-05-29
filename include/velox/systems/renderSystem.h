@@ -1,6 +1,7 @@
 #pragma once
 
 #include "velox/assetManager.h"
+#include "velox/components/ui.h"
 #include <vector>
 
 namespace vl {
@@ -30,11 +31,14 @@ struct RenderContext {
   RenderWindow *window;
   AssetManager *assetMan;
   std::vector<RenderCommand> renderQueue;
-  RenderContext(RenderWindow *win, AssetManager * assets) : window(win), assetMan(assets), renderQueue(std::vector<RenderCommand>()) {}
+  RenderContext(RenderWindow *win, AssetManager *assets)
+      : window(win), assetMan(assets),
+        renderQueue(std::vector<RenderCommand>()) {}
 };
 
 void renderSystem(Registry &reg, RenderContext &ctx);
 void sortRenderQueue(std::vector<RenderCommand> &renderQueue);
 void drawRenderQueue(RenderContext &ctx);
+void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx);
 
 } // namespace vl

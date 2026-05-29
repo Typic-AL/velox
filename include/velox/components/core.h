@@ -40,7 +40,6 @@ struct SpriteRenderer {
 struct TextRenderer {
   FontID id;
   std::string text;
-  glm::vec2 pos;
   SDL_Color color = vl::BLACK;
   int size;
   int zIndex;

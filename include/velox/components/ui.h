@@ -25,10 +25,20 @@ enum class Anchor {
   BOTTOM_RIGHT
 };
 
-struct UIButton {
+struct Button {
   SDL_FRect rect;
   ButtonCallback callback;
   bool pressed = false;
+};
+
+struct NineSlice {
+  TextureID id;
+  SDL_FRect rect;
+  float cornerSize = 8;
+  int zIndex = 0;
+  SDL_ScaleMode scaleMode = SDL_SCALEMODE_LINEAR;
+  bool useRenderScale = true;
+  bool isUi = false;
 };
 
 void handleButtonPresses(Registry &reg, Input &input);
