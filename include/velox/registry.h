@@ -142,6 +142,13 @@ public:
     return *static_cast<T *>(it->second.get());
   }
 
+  template <typename T> T *tryGetResource() {
+    auto it = m_resources.find(std::type_index(typeid(T)));
+    if (it == m_resources.end())
+      return nullptr;
+    return static_cast<T *>(it->second.get());
+  }
+
   // Get a const reference
   template <typename T> const T &getResource() const {
     auto it = m_resources.find(std::type_index(typeid(T)));

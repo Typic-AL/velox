@@ -1,6 +1,7 @@
 #include "velox/systems/renderSystem.h"
 #include "velox/renderWindow.h"
 
+#include "velox/camera.h"
 #include "velox/components/core.h"
 #include "velox/components/ui.h"
 #include "velox/registry.h"
@@ -100,14 +101,41 @@ void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx) {
   }
 }
 
-void renderSystem(Registry &reg, RenderContext &ctx) {
+struct CameraOffsets {
+  glm::vec2 scaled{0, 0};  // for useRenderScale=true (reference resolution space)
+  glm::vec2 raw{0, 0};     // for useRenderScale=false (screen pixel space)
+
+  glm::vec2 pick(bool isUi, bool useRenderScale) const {
+    if (isUi) return {0, 0};
+    return useRenderScale ? scaled : raw;
+  }
+};
+
+CameraOffsets computeCameraOffsets(Registry &reg, RenderContext &ctx) {
+  Camera *cam = reg.tryGetResource<Camera>();
+  if (!cam)
+    return {};
+
+  float refW = static_cast<float>(ctx.window->getReferenceWidth());
+  float refH = static_cast<float>(ctx.window->getReferenceHeight());
+  float scrW = static_cast<float>(ctx.window->getScreenWidth());
+  float scrH = static_cast<float>(ctx.window->getScreenHeight());
+
+  CameraOffsets off;
+  off.scaled = cam->pos - glm::vec2(refW * 0.5f, refH * 0.5f);
+  off.raw    = cam->pos * glm::vec2(scrW / refW, scrH / refH) - glm::vec2(scrW * 0.5f, scrH * 0.5f);
+  return off;
+}
+
+void collectTilemaps(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
   for (auto [tilemap, transform] : reg.view<TilemapRenderer, Transform>()) {
     if (tilemap.id.empty())
       continue;
 
     const TilemapData &data = ctx.assetMan->idToTilemap(tilemap.id);
-    float originX = transform.lPos.x;
-    float originY = transform.lPos.y;
+    glm::vec2 tmOff = off.pick(false, tilemap.useRenderScale);
+    float originX = transform.lPos.x - tmOff.x;
+    float originY = transform.lPos.y - tmOff.y;
 
     for (const auto &layer : data.layers) {
       if (!layer.visible)
@@ -157,27 +185,33 @@ void renderSystem(Registry &reg, RenderContext &ctx) {
       }
     }
   }
+}
 
+void collectSprites(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
   for (auto [sprite, transform] : reg.view<SpriteRenderer, Transform>()) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
+    glm::vec2 o = off.pick(sprite.isUi, sprite.useRenderScale);
     ctx.renderQueue.emplace_back(tex,
-                                 SDL_FRect{transform.lPos.x, transform.lPos.y,
+                                 SDL_FRect{transform.lPos.x - o.x,
+                                           transform.lPos.y - o.y,
                                            sprite.width, sprite.height},
                                  sprite.src, sprite.zIndex, sprite.isUi,
                                  sprite.useRenderScale);
   }
+}
 
+void collectText(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
   for (auto [text, transform] : reg.view<TextRenderer, Transform>()) {
     SDL_Texture *tex = ctx.assetMan->getTextTex(text.text, text.id, text.size, text.color);
     if (!tex)
       continue;
     float w, h;
     SDL_GetTextureSize(tex, &w, &h);
-    SDL_SetTextureScaleMode(tex, text.pixelFont ? SDL_SCALEMODE_NEAREST
-                                                : SDL_SCALEMODE_LINEAR);
-    float x = transform.lPos.x;
-    float y = transform.lPos.y;
+    SDL_SetTextureScaleMode(tex, text.pixelFont ? SDL_SCALEMODE_NEAREST : SDL_SCALEMODE_LINEAR);
+    glm::vec2 o = off.pick(text.isUi, text.useRenderScale);
+    float x = transform.lPos.x - o.x;
+    float y = transform.lPos.y - o.y;
     if (text.centered) {
       x -= w / 2.0f;
       y -= h / 2.0f;
@@ -186,14 +220,23 @@ void renderSystem(Registry &reg, RenderContext &ctx) {
                                  SDL_FRect{0, 0, w, h}, text.zIndex, text.isUi,
                                  text.useRenderScale);
   }
+}
 
-  for (auto [nineSlice] : reg.view<NineSlice>()) {
+void collectNineSlices(Registry &reg, RenderContext &ctx) {
+  for (auto [nineSlice] : reg.view<NineSlice>())
     drawNineSlice(nineSlice, ctx);
-  }
+}
+
+void renderSystem(Registry &reg, RenderContext &ctx) {
+  CameraOffsets off = computeCameraOffsets(reg, ctx);
+
+  collectTilemaps(reg, ctx, off);
+  collectSprites(reg, ctx, off);
+  collectText(reg, ctx, off);
+  collectNineSlices(reg, ctx);
 
   sortRenderQueue(ctx.renderQueue);
   drawRenderQueue(ctx);
-
   ctx.renderQueue.clear();
 }
 

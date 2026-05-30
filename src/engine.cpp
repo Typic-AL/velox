@@ -29,6 +29,7 @@ void Engine::update() {
   Physics::stepPhysics();
 
   interpolatePosition(m_reg);
+  updateCamera(m_reg);
 
   m_reg.getResource<Input>().reset();
 }
