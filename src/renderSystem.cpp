@@ -4,6 +4,7 @@
 #include "velox/components/core.h"
 #include "velox/components/ui.h"
 #include "velox/registry.h"
+#include "velox/assetManager.h"
 
 namespace vl {
 
@@ -100,6 +101,63 @@ void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx) {
 }
 
 void renderSystem(Registry &reg, RenderContext &ctx) {
+  for (auto [tilemap, transform] : reg.view<TilemapRenderer, Transform>()) {
+    if (tilemap.id.empty())
+      continue;
+
+    const TilemapData &data = ctx.assetMan->idToTilemap(tilemap.id);
+    float originX = transform.lPos.x;
+    float originY = transform.lPos.y;
+
+    for (const auto &layer : data.layers) {
+      if (!layer.visible)
+        continue;
+
+      if (!tilemap.layerFilter.empty()) {
+        bool found = false;
+        for (const auto &name : tilemap.layerFilter)
+          if (name == layer.name) { found = true; break; }
+        if (!found)
+          continue;
+      }
+
+      float layerX = originX + layer.offsetX;
+      float layerY = originY + layer.offsetY;
+
+      for (int row = 0; row < layer.height; ++row) {
+        for (int col = 0; col < layer.width; ++col) {
+          int idx = row * layer.width + col;
+          if (idx >= static_cast<int>(layer.data.size()))
+            continue;
+
+          int gid = layer.data[idx];
+          if (gid == 0)
+            continue;
+
+          const TilemapTileset *ts = data.tilesetForGid(gid);
+          if (!ts)
+            continue;
+
+          SDL_Texture *tex = ctx.assetMan->idToTex(ts->textureId);
+          if (!tex)
+            continue;
+
+          SDL_FRect src = data.srcRectForGid(gid, *ts);
+          SDL_FRect dst{
+              layerX + col * static_cast<float>(data.tileWidth),
+              layerY + row * static_cast<float>(data.tileHeight),
+              static_cast<float>(data.tileWidth),
+              static_cast<float>(data.tileHeight),
+          };
+
+          SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(layer.opacity * 255.0f));
+          ctx.renderQueue.emplace_back(tex, dst, src, tilemap.zIndex, false,
+                                       tilemap.useRenderScale);
+        }
+      }
+    }
+  }
+
   for (auto [sprite, transform] : reg.view<SpriteRenderer, Transform>()) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);

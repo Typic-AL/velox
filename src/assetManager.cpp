@@ -17,6 +17,7 @@ bool AssetManager::parseManifest() {
     parseTextures(config);
     parseFonts(config);
     parseAnims(config);
+    parseTilemaps(config);
     return true;
   } catch (const json::parse_error &e) {
     std::cerr << "[Asset Manager] JSON parsing error for assets.json: "
@@ -222,6 +223,82 @@ const SpriteAnimation &AssetManager::idToAnim(AnimID id) {
   m_animCache[id] = std::move(anim);
 
   return m_animCache[id];
+}
+
+void AssetManager::parseTilemaps(const json &config) {
+  if (!config.contains("tilemaps") || !config["tilemaps"].is_array()) {
+    std::cout << "[Asset Manager] No 'tilemaps' section found or it's not a sequence\n";
+    return;
+  }
+  for (const auto &entry : config["tilemaps"]) {
+    if (!entry.contains("id") || !entry.contains("path")) {
+      std::cerr << "[Asset Manager] Malformed tilemap entry (missing 'id' or 'path')\n";
+      continue;
+    }
+    m_tilemapMap[entry["id"].get<std::string>()] = entry["path"].get<std::string>();
+  }
+}
+
+const TilemapData &AssetManager::idToTilemap(TilemapID id) {
+  auto cacheIt = m_tilemapCache.find(id);
+  if (cacheIt != m_tilemapCache.end())
+    return cacheIt->second;
+
+  auto mapIt = m_tilemapMap.find(id);
+  if (mapIt == m_tilemapMap.end())
+    throw std::runtime_error("[Asset Manager] Unknown tilemap id: " + id);
+
+  std::ifstream file(mapIt->second);
+  if (!file.is_open())
+    throw std::runtime_error("[Asset Manager] Failed to open tilemap file: " + mapIt->second);
+
+  json data = json::parse(file);
+
+  TilemapData tilemap;
+  tilemap.tileWidth  = data.value("tilewidth",  0);
+  tilemap.tileHeight = data.value("tileheight", 0);
+  tilemap.mapWidth   = data.value("width",  0);
+  tilemap.mapHeight  = data.value("height", 0);
+
+  // Parse tilesets — Tiled embeds tileset data or references external .tsj files.
+  // We only support embedded tilesets here; external ones need their texture
+  // registered in assets.json using the tileset "name" as the TextureID.
+  for (const auto &ts : data.value("tilesets", json::array())) {
+    TilemapTileset tileset;
+    tileset.firstGid   = ts.value("firstgid",   1);
+    tileset.tileWidth  = ts.value("tilewidth",  tilemap.tileWidth);
+    tileset.tileHeight = ts.value("tileheight", tilemap.tileHeight);
+    tileset.columns    = ts.value("columns",    0);
+    tileset.tileCount  = ts.value("tilecount",  0);
+    // The tileset's image is registered as a texture whose ID matches the
+    // tileset "name" field. Ensure it's in assets.json.
+    tileset.textureId  = ts.value("name", "");
+    tilemap.tilesets.push_back(std::move(tileset));
+  }
+
+  for (const auto &layer : data.value("layers", json::array())) {
+    // Only tile layers (type == "tilelayer") are supported for rendering.
+    if (layer.value("type", "") != "tilelayer")
+      continue;
+
+    TilemapLayer tl;
+    tl.name    = layer.value("name",    "");
+    tl.id      = layer.value("id",      0);
+    tl.width   = layer.value("width",   0);
+    tl.height  = layer.value("height",  0);
+    tl.offsetX = layer.value("offsetx", 0.0f);
+    tl.offsetY = layer.value("offsety", 0.0f);
+    tl.opacity = layer.value("opacity", 1.0f);
+    tl.visible = layer.value("visible", true);
+
+    if (layer.contains("data") && layer["data"].is_array())
+      tl.data = layer["data"].get<std::vector<int>>();
+
+    tilemap.layers.push_back(std::move(tl));
+  }
+
+  m_tilemapCache[id] = std::move(tilemap);
+  return m_tilemapCache[id];
 }
 
 } // namespace vl

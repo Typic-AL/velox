@@ -4,6 +4,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include "components/animation.h"
+#include "components/tilemap.h"
 
 #include <memory>
 #include <string>
@@ -69,6 +70,8 @@ private:
   std::unordered_map<TextureID, std::string> m_texMap;
   std::unordered_map<FontID, std::string> m_fontMap;
   std::unordered_map<AnimID, std::string> m_animMap;
+  std::unordered_map<TilemapID, std::string> m_tilemapMap;
+  std::unordered_map<TilemapID, TilemapData> m_tilemapCache;
 
   std::string m_assetsPath = "assets.json";
 
@@ -77,6 +80,7 @@ private:
   void parseTextures(const json &config);
   void parseFonts(const json &config);
   void parseAnims(const json &config);
+  void parseTilemaps(const json &config);
 
 public:
   AssetManager(RenderWindow *renderWindow) : m_renderWindow(renderWindow) {}
@@ -89,5 +93,6 @@ public:
   SDL_Texture *getTextTex(const std::string &text, FontID id, int size, SDL_Color color);
   TTF_Font *idToFont(FontID id, int size);
   const SpriteAnimation &idToAnim(AnimID id);
+  const TilemapData &idToTilemap(TilemapID id);
 };
 } // namespace vl
