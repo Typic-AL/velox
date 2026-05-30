@@ -41,7 +41,8 @@ struct TilemapData {
   const TilemapTileset *tilesetForGid(int gid) const {
     const TilemapTileset *best = nullptr;
     for (const auto &ts : tilesets) {
-      if (gid >= ts.firstGid && (best == nullptr || ts.firstGid > best->firstGid))
+      if (gid >= ts.firstGid &&
+          (best == nullptr || ts.firstGid > best->firstGid))
         best = &ts;
     }
     return best;
@@ -65,6 +66,7 @@ struct TilemapRenderer {
   TilemapID id;
   int zIndex = 0;
   bool useRenderScale = true;
+  SDL_ScaleMode scaleMode = SDL_SCALEMODE_NEAREST;
   // When non-empty, only layers whose name appears in this list are rendered.
   std::vector<std::string> layerFilter;
 };

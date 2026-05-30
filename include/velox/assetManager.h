@@ -55,16 +55,17 @@ private:
   struct TextKeyHash {
     size_t operator()(const TextKey &k) const {
       size_t h = std::hash<std::string>{}(k.text);
-      h ^= std::hash<std::string>{}(k.fontId) + 0x9e3779b9 + (h << 6) + (h >> 2);
+      h ^=
+          std::hash<std::string>{}(k.fontId) + 0x9e3779b9 + (h << 6) + (h >> 2);
       h ^= std::hash<int>{}(k.size) + 0x9e3779b9 + (h << 6) + (h >> 2);
       h ^= std::hash<uint32_t>{}((k.color.r << 24) | (k.color.g << 16) |
-                                  (k.color.b << 8) | k.color.a) +
+                                 (k.color.b << 8) | k.color.a) +
            0x9e3779b9 + (h << 6) + (h >> 2);
       return h;
     }
   };
-  std::unordered_map<TextKey, std::unique_ptr<SDL_Texture, decltype(texDeleter)>,
-                     TextKeyHash>
+  std::unordered_map<
+      TextKey, std::unique_ptr<SDL_Texture, decltype(texDeleter)>, TextKeyHash>
       m_textCache;
 
   std::unordered_map<TextureID, std::string> m_texMap;
@@ -89,8 +90,9 @@ public:
   bool parseManifest();
 
   SDL_Texture *idToTex(TextureID id);
-  SDL_Texture *loadTex(std::string_view path);
-  SDL_Texture *getTextTex(const std::string &text, FontID id, int size, SDL_Color color);
+  SDL_Texture *loadTextureFromPath(const std::string &path);
+  SDL_Texture *getTextTex(const std::string &text, FontID id, int size,
+                          SDL_Color color);
   TTF_Font *idToFont(FontID id, int size);
   const SpriteAnimation &idToAnim(AnimID id);
   const TilemapData &idToTilemap(TilemapID id);

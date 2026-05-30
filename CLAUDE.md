@@ -39,7 +39,7 @@ Velox is a 2D game engine built on an **Entity Component System (ECS)** pattern 
 
 ### Components (pure data, in `include/velox/components/`)
 
-- `core.h`: `Transform` (pos + prev pos for interpolation), `Rigidbody` (velocity, body type), `SpriteRenderer`, `TextRenderer`, `RectRenderer`
+- `core.h`: `Transform` (pos + prev pos for interpolation), `Rigidbody` (velocity, body type), `SpriteRenderer`, `TextRenderer`, `RectRenderer`, do not add to this file when making new components, instead add to `components/`
 - `collider.h`: `Collider` — AABB with layer mask bitmask and enter/exit/stay callbacks
 - `animation.h`: `SpriteAnimator` — frame index and timer; driven by `AssetManager` animation data
 - `ui.h`: `Button`, `NineSlice`
@@ -52,7 +52,7 @@ Systems are registered with the Registry and called each update/render cycle. Th
 - `renderSystem.h/cpp`: Collects draw commands from all drawable components, sorts by z-index, handles UI vs. game-world scaling
 - `collisionSystem.h/cpp`: Sweep & prune AABB detection; invokes collision callbacks
 - `animationSystem.h` / `animation.cpp`: Advances frame indices based on elapsed time
-- `systems/core.h`: Velocity application and position interpolation
+- `systems/core.h`: Velocity application and position interpolation, do not add to this file when making new systems, instead add to `systems/`
 
 ### Asset Pipeline
 
@@ -65,5 +65,11 @@ Systems are registered with the Registry and called each update/render cycle. Th
 - **Z-index + UI flag**: Rendering order is controlled per-component; UI components render in screen space.
 - **Fixed timestep with interpolation**: Physics runs at a configurable Hz (default 60); `Transform` stores previous position so the render system can interpolate.
 
+## Code Style
 
-Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
+- No inline comments unless the logic is genuinely non-obvious
+- No docstrings on simple/self-evident functions
+- No section header comments (e.g., `# Initialize variables`, `# Return result`)
+- No "explanatory" comments that just restate what the code does
+- Name things clearly enough that comments aren't needed
+- If a comment is needed, make it terse and direct — not a full sentence with punctuation

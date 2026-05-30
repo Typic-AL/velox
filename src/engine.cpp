@@ -1,4 +1,5 @@
 #include "velox/engine.h"
+#include "velox/camera.h"
 #include "velox/components/ui.h"
 #include "velox/systems/animationSystem.h"
 #include "velox/systems/collisionSystem.h"

@@ -1,9 +1,27 @@
 #include "velox/assetManager.h"
+#include <charconv>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
 
 #include "velox/renderWindow.h"
+
+namespace {
+// Tiled percent-encodes special characters in file paths (spaces -> %20, etc.).
+std::string percentDecode(std::string s) {
+  for (size_t i = 0; i + 2 < s.size(); ) {
+    if (s[i] == '%') {
+      unsigned ch = 0;
+      if (std::from_chars(s.data() + i + 1, s.data() + i + 3, ch, 16).ec == std::errc{}) {
+        s.replace(i, 3, 1, static_cast<char>(ch));
+      }
+    }
+    ++i;
+  }
+  return s;
+}
+} // namespace
 
 namespace vl {
 bool AssetManager::parseManifest() {
@@ -121,6 +139,29 @@ SDL_Texture *AssetManager::idToTex(TextureID id) {
     return tex;
   }
   return nullptr;
+}
+
+SDL_Texture *AssetManager::loadTextureFromPath(const std::string &path) {
+  // Check cache first — the path itself is the key.
+  auto cacheIt = m_texCache.find(path);
+  if (cacheIt != m_texCache.end())
+    return cacheIt->second.get();
+
+  SDL_Surface *surface = IMG_Load(path.c_str());
+  if (!surface) {
+    SDL_Log("[Asset Manager] Unable to load image from path %s! SDL_image Error: %s\n",
+            path.c_str(), SDL_GetError());
+    return nullptr;
+  }
+  SDL_Texture *tex = SDL_CreateTextureFromSurface(m_renderWindow->getRen(), surface);
+  SDL_DestroySurface(surface);
+  if (!tex) {
+    SDL_Log("[Asset Manager] Unable to create texture from %s! SDL Error: %s\n",
+            path.c_str(), SDL_GetError());
+    return nullptr;
+  }
+  m_texCache[path] = std::unique_ptr<SDL_Texture, decltype(texDeleter)>(tex, texDeleter);
+  return tex;
 }
 
 TTF_Font *AssetManager::idToFont(FontID id, int size) {
@@ -260,19 +301,87 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
   tilemap.mapWidth   = data.value("width",  0);
   tilemap.mapHeight  = data.value("height", 0);
 
-  // Parse tilesets — Tiled embeds tileset data or references external .tsj files.
-  // We only support embedded tilesets here; external ones need their texture
-  // registered in assets.json using the tileset "name" as the TextureID.
+  // Parse tilesets. Three cases are supported:
+  //   1. External JSON tileset (.tsj) via "source" field — parsed here, texture auto-loaded.
+  //   2. Embedded tileset with an "image" field — texture auto-loaded relative to the .tmj.
+  //   3. Legacy fallback — no "image" field; textureId is the tileset "name" and must be
+  //      registered in assets.json manually.
+  // XML tilesets (.tsx) are not supported — Tiled exports identical data as JSON (.tsj).
+  std::filesystem::path mapDir = std::filesystem::path(mapIt->second).parent_path();
+
   for (const auto &ts : data.value("tilesets", json::array())) {
+    int firstGid = ts.value("firstgid", 1);
+
+    // Determine where the tileset data lives and which directory image paths are relative to.
+    json tsData;
+    std::filesystem::path baseDir;
+
+    if (ts.contains("source") && ts["source"].is_string()) {
+      // External tileset reference — Tiled stores tileset data in a separate file.
+      std::string srcRel = percentDecode(ts["source"].get<std::string>());
+      std::filesystem::path srcPath = (mapDir / srcRel).lexically_normal();
+      std::string ext = srcPath.extension().string();
+
+      if (ext == ".tsx") {
+        SDL_Log("[Asset Manager] XML tilesets (.tsx) are not supported. "
+                "Convert '%s' to JSON (.tsj) in Tiled or embed the tileset in the map.\n",
+                srcRel.c_str());
+        continue;
+      }
+      if (ext != ".tsj") {
+        SDL_Log("[Asset Manager] Unknown tileset source format '%s'; only .tsj (JSON) is supported.\n",
+                srcRel.c_str());
+        continue;
+      }
+
+      std::ifstream tsFile(srcPath);
+      if (!tsFile.is_open()) {
+        SDL_Log("[Asset Manager] Failed to open external tileset file: %s\n",
+                srcPath.string().c_str());
+        continue;
+      }
+
+      json rawTs = json::parse(tsFile);
+      // Tiled wraps external tileset data in a "tileset" key with a type marker.
+      if (rawTs.contains("tileset") && rawTs.value("type", "") == "tileset")
+        tsData = rawTs["tileset"];
+      else
+        tsData = rawTs;
+      baseDir = srcPath.parent_path();
+    } else {
+      // Embedded tileset — data is inline in the .tmj.
+      tsData = ts;
+      baseDir = mapDir;
+    }
+
     TilemapTileset tileset;
-    tileset.firstGid   = ts.value("firstgid",   1);
-    tileset.tileWidth  = ts.value("tilewidth",  tilemap.tileWidth);
-    tileset.tileHeight = ts.value("tileheight", tilemap.tileHeight);
-    tileset.columns    = ts.value("columns",    0);
-    tileset.tileCount  = ts.value("tilecount",  0);
-    // The tileset's image is registered as a texture whose ID matches the
-    // tileset "name" field. Ensure it's in assets.json.
-    tileset.textureId  = ts.value("name", "");
+    tileset.firstGid   = firstGid;
+    tileset.tileWidth  = tsData.value("tilewidth",  tilemap.tileWidth);
+    tileset.tileHeight = tsData.value("tileheight", tilemap.tileHeight);
+    tileset.columns    = tsData.value("columns",    0);
+    tileset.tileCount  = tsData.value("tilecount",  0);
+
+    // Resolve and load the tileset texture. If the tileset specifies an "image" field,
+    // we auto-load it relative to the tileset file's directory and use the resolved
+    // path as the textureId cache key — no assets.json entry required.
+    if (tsData.contains("image") && tsData["image"].is_string()) {
+      std::string imgRel = percentDecode(tsData["image"].get<std::string>());
+      std::filesystem::path imgPath = (baseDir / imgRel).lexically_normal();
+      std::string imgStr = imgPath.string();
+
+      if (loadTextureFromPath(imgStr)) {
+        tileset.textureId = imgStr;  // path-keyed lookup in m_texCache
+      } else {
+        SDL_Log("[Asset Manager] Failed to auto-load tileset texture: %s. "
+                "Falling back to tileset name '%s'.\n",
+                imgStr.c_str(), tsData.value("name", "").c_str());
+        tileset.textureId = tsData.value("name", "");
+      }
+    } else {
+      // No image field — legacy contract: tileset "name" must be registered in assets.json.
+      tileset.textureId = tsData.value("name", "");
+    }
+
     tilemap.tilesets.push_back(std::move(tileset));
   }
 

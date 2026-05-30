@@ -137,7 +137,8 @@ public:
   template <typename T> T &getResource() {
     auto it = m_resources.find(std::type_index(typeid(T)));
     if (it == m_resources.end()) {
-      throw std::runtime_error("Resource not found");
+      throw std::runtime_error(std::string("Resource not found: ") +
+                               typeid(T).name());
     }
     return *static_cast<T *>(it->second.get());
   }

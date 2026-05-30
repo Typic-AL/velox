@@ -170,6 +170,8 @@ void collectTilemaps(Registry &reg, RenderContext &ctx, const CameraOffsets &off
           if (!tex)
             continue;
 
+          SDL_SetTextureScaleMode(tex, tilemap.scaleMode);
+
           SDL_FRect src = data.srcRectForGid(gid, *ts);
           SDL_FRect dst{
               layerX + col * static_cast<float>(data.tileWidth),
@@ -179,7 +181,7 @@ void collectTilemaps(Registry &reg, RenderContext &ctx, const CameraOffsets &off
           };
 
           SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(layer.opacity * 255.0f));
-          ctx.renderQueue.emplace_back(tex, dst, src, tilemap.zIndex, false,
+          ctx.renderQueue.emplace_back(tex, dst, src, tilemap.zIndex - 1000, false,
                                        tilemap.useRenderScale);
         }
       }
@@ -193,8 +195,8 @@ void collectSprites(Registry &reg, RenderContext &ctx, const CameraOffsets &off)
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
     glm::vec2 o = off.pick(sprite.isUi, sprite.useRenderScale);
     ctx.renderQueue.emplace_back(tex,
-                                 SDL_FRect{transform.lPos.x - o.x,
-                                           transform.lPos.y - o.y,
+                                 SDL_FRect{transform.lPos.x - o.x - sprite.width * 0.5f,
+                                           transform.lPos.y - o.y - sprite.height * 0.5f,
                                            sprite.width, sprite.height},
                                  sprite.src, sprite.zIndex, sprite.isUi,
                                  sprite.useRenderScale);
