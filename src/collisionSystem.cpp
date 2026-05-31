@@ -123,7 +123,7 @@ void sweepAndPrune(Registry &reg) {
       Collider &colB = reg.get<Collider>(entities[j]);
       Transform &tB = reg.get<Transform>(entities[j]);
 
-      const SDL_FRect rectB{tB.pos.x + colA.offset.x, tB.pos.y + colA.offset.y,
+      const SDL_FRect rectB{tB.pos.x + colB.offset.x, tB.pos.y + colB.offset.y,
                             colB.width, colB.height};
 
       if (rectB.x > rectA.x + rectA.w)

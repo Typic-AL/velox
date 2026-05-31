@@ -1,24 +1,24 @@
 #include "velox/systems/renderSystem.h"
 #include "velox/renderWindow.h"
 
+#include "velox/assetManager.h"
 #include "velox/camera.h"
 #include "velox/components/core.h"
 #include "velox/components/ui.h"
 #include "velox/registry.h"
-#include "velox/assetManager.h"
 
 namespace vl {
 
 void sortRenderQueue(std::vector<RenderCommand> &renderQueue) {
   std::stable_sort(renderQueue.begin(), renderQueue.end(),
-            [](const RenderCommand &a, const RenderCommand &b) {
-              if (a.isUi != b.isUi)
-                return !a.isUi;
+                   [](const RenderCommand &a, const RenderCommand &b) {
+                     if (a.isUi != b.isUi)
+                       return !a.isUi;
 
-              if (a.zIndex != b.zIndex)
-                return a.zIndex < b.zIndex;
-              return a.tex < b.tex;
-            });
+                     if (a.zIndex != b.zIndex)
+                       return a.zIndex < b.zIndex;
+                     return a.tex < b.tex;
+                   });
 }
 
 void drawRenderQueue(RenderContext &ctx) {
@@ -102,11 +102,12 @@ void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx) {
 }
 
 struct CameraOffsets {
-  glm::vec2 scaled{0, 0};  // for useRenderScale=true (reference resolution space)
-  glm::vec2 raw{0, 0};     // for useRenderScale=false (screen pixel space)
+  glm::vec2 scaled{0, 0};
+  glm::vec2 raw{0, 0};
 
   glm::vec2 pick(bool isUi, bool useRenderScale) const {
-    if (isUi) return {0, 0};
+    if (isUi)
+      return {0, 0};
     return useRenderScale ? scaled : raw;
   }
 };
@@ -122,12 +123,16 @@ CameraOffsets computeCameraOffsets(Registry &reg, RenderContext &ctx) {
   float scrH = static_cast<float>(ctx.window->getScreenHeight());
 
   CameraOffsets off;
-  off.scaled = cam->pos - glm::vec2(refW * 0.5f, refH * 0.5f);
-  off.raw    = cam->pos * glm::vec2(scrW / refW, scrH / refH) - glm::vec2(scrW * 0.5f, scrH * 0.5f);
+  off.scaled =
+      cam->pos + cam->followOffset - glm::vec2(refW * 0.5f, refH * 0.5f);
+  off.raw =
+      (cam->pos + cam->followOffset) * glm::vec2(scrW / refW, scrH / refH) -
+      glm::vec2(scrW * 0.5f, scrH * 0.5f);
   return off;
 }
 
-void collectTilemaps(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
+void collectTilemaps(Registry &reg, RenderContext &ctx,
+                     const CameraOffsets &off) {
   for (auto [tilemap, transform] : reg.view<TilemapRenderer, Transform>()) {
     if (tilemap.id.empty())
       continue;
@@ -144,7 +149,10 @@ void collectTilemaps(Registry &reg, RenderContext &ctx, const CameraOffsets &off
       if (!tilemap.layerFilter.empty()) {
         bool found = false;
         for (const auto &name : tilemap.layerFilter)
-          if (name == layer.name) { found = true; break; }
+          if (name == layer.name) {
+            found = true;
+            break;
+          }
         if (!found)
           continue;
       }
@@ -180,37 +188,40 @@ void collectTilemaps(Registry &reg, RenderContext &ctx, const CameraOffsets &off
               static_cast<float>(data.tileHeight),
           };
 
-          SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(layer.opacity * 255.0f));
-          ctx.renderQueue.emplace_back(tex, dst, src, tilemap.zIndex - 1000, false,
-                                       tilemap.useRenderScale);
+          SDL_SetTextureAlphaMod(tex,
+                                 static_cast<Uint8>(layer.opacity * 255.0f));
+          ctx.renderQueue.emplace_back(tex, dst, src, tilemap.zIndex - 1000,
+                                       false, tilemap.useRenderScale);
         }
       }
     }
   }
 }
 
-void collectSprites(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
+void collectSprites(Registry &reg, RenderContext &ctx,
+                    const CameraOffsets &off) {
   for (auto [sprite, transform] : reg.view<SpriteRenderer, Transform>()) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
     glm::vec2 o = off.pick(sprite.isUi, sprite.useRenderScale);
-    ctx.renderQueue.emplace_back(tex,
-                                 SDL_FRect{transform.lPos.x - o.x - sprite.width * 0.5f,
-                                           transform.lPos.y - o.y - sprite.height * 0.5f,
-                                           sprite.width, sprite.height},
-                                 sprite.src, sprite.zIndex, sprite.isUi,
-                                 sprite.useRenderScale);
+    ctx.renderQueue.emplace_back(
+        tex,
+        SDL_FRect{transform.lPos.x - o.x, transform.lPos.y - o.y, sprite.width,
+                  sprite.height},
+        sprite.src, sprite.zIndex, sprite.isUi, sprite.useRenderScale);
   }
 }
 
 void collectText(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
   for (auto [text, transform] : reg.view<TextRenderer, Transform>()) {
-    SDL_Texture *tex = ctx.assetMan->getTextTex(text.text, text.id, text.size, text.color);
+    SDL_Texture *tex =
+        ctx.assetMan->getTextTex(text.text, text.id, text.size, text.color);
     if (!tex)
       continue;
     float w, h;
     SDL_GetTextureSize(tex, &w, &h);
-    SDL_SetTextureScaleMode(tex, text.pixelFont ? SDL_SCALEMODE_NEAREST : SDL_SCALEMODE_LINEAR);
+    SDL_SetTextureScaleMode(tex, text.pixelFont ? SDL_SCALEMODE_NEAREST
+                                                : SDL_SCALEMODE_LINEAR);
     glm::vec2 o = off.pick(text.isUi, text.useRenderScale);
     float x = transform.lPos.x - o.x;
     float y = transform.lPos.y - o.y;

@@ -22,7 +22,8 @@ src = [
   'src/collisionSystem.cpp',
   'src/animation.cpp',
   'src/input.cpp',
-  'src/ui.cpp'
+  'src/ui.cpp',
+  'src/tilemap.cpp',
 ]
 
 velox = library(

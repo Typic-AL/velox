@@ -1,7 +1,9 @@
 #pragma once
 
+#include "../registry.h"
 #include <SDL3/SDL.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../resourceIDs.h"
@@ -36,6 +38,7 @@ struct TilemapData {
   int mapHeight = 0;
   std::vector<TilemapTileset> tilesets;
   std::vector<TilemapLayer> layers;
+  std::unordered_map<int, std::vector<SDL_FRect>> tileCollisionMap;
 
   // Returns the tileset that owns the given gid, or nullptr.
   const TilemapTileset *tilesetForGid(int gid) const {
@@ -70,5 +73,8 @@ struct TilemapRenderer {
   // When non-empty, only layers whose name appears in this list are rendered.
   std::vector<std::string> layerFilter;
 };
+
+void createTilemapColliders(Registry &reg, TilemapID id,
+                            int collisionLayer = 0);
 
 } // namespace vl

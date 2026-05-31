@@ -383,6 +383,26 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
     }
 
     tilemap.tilesets.push_back(std::move(tileset));
+
+	    // Build collision map from tile objectgroups.
+	    for (const auto &tile : tsData.value("tiles", json::array())) {
+      int tileId = tile.value("id", -1);
+      if (tileId < 0 || !tile.contains("objectgroup"))
+        continue;
+
+      int gid = firstGid + tileId;
+      auto &rects = tilemap.tileCollisionMap[gid];
+
+      const auto &objects = tile["objectgroup"].value("objects", json::array());
+      for (const auto &obj : objects) {
+        float ox = obj.value("x", 0.0f);
+        float oy = obj.value("y", 0.0f);
+        float ow = obj.value("width", 0.0f);
+        float oh = obj.value("height", 0.0f);
+        if (ow > 0 && oh > 0)
+          rects.push_back(SDL_FRect{ox, oy, ow, oh});
+      }
+    }
   }
 
   for (const auto &layer : data.value("layers", json::array())) {
