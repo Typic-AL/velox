@@ -1,7 +1,9 @@
-#include "velox/components/ui.h"
+#include "velox/components/ui/ui.h"
 #include "velox/input.h"
 #include "velox/registry.h"
 #include "velox/renderWindow.h"
+#include "velox/time.h"
+#include <algorithm>
 
 namespace vl {
 
@@ -10,8 +12,9 @@ void handleButtonPresses(Registry &reg, Input &input) {
 
     glm::vec2 mousePos = input.getMousePos();
     SDL_FPoint mousePoint = {mousePos.x, mousePos.y};
+    SDL_FRect rect = {0, 0, button.w, button.h};
 
-    if (!(SDL_PointInRectFloat(&mousePoint, &button.rect)))
+    if (!(SDL_PointInRectFloat(&mousePoint, &rect)))
       continue;
 
     if (input.wasMouseJustPressed(LMB)) {
@@ -69,6 +72,13 @@ void anchorTransform(Registry &reg, UIBounds &bounds, Transform &transform,
     transform.pos.x += sw - bounds.w;
     transform.pos.y += sh - bounds.h;
     break;
+  }
+}
+
+void updateProgressBars(Registry &reg) {
+  for (auto [bar] : reg.view<ProgressBar>()) {
+    float diff = bar.value - bar.displayValue;
+    bar.displayValue += diff * std::min(1.0f, bar.speed * Time::deltaTime);
   }
 }
 

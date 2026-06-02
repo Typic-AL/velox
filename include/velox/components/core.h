@@ -49,7 +49,6 @@ struct TextRenderer {
   bool isUi = true;
 };
 struct RectRenderer {
-  glm::vec2 pos;
   float width, height;
   SDL_Color color;
   float alpha = 255;

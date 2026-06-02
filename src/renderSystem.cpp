@@ -4,7 +4,7 @@
 #include "velox/assetManager.h"
 #include "velox/camera.h"
 #include "velox/components/core.h"
-#include "velox/components/ui.h"
+#include "velox/components/ui/ui.h"
 #include "velox/registry.h"
 
 namespace vl {
@@ -37,15 +37,20 @@ void drawRenderQueue(RenderContext &ctx) {
       if (changedScale)
         SDL_SetRenderLogicalPresentation(renderer, refWidth, refHeight,
                                          presentationMode);
-      SDL_RenderTexture(renderer, command.tex, &command.srcRect,
-                        &command.dstRect);
       changedScale = false;
     } else {
       SDL_SetRenderLogicalPresentation(renderer, width, height,
                                        SDL_LOGICAL_PRESENTATION_DISABLED);
+      changedScale = true;
+    }
+
+    if (command.isRect) {
+      SDL_SetRenderDrawColor(renderer, command.color.r, command.color.g,
+                             command.color.b, command.color.a);
+      SDL_RenderFillRect(renderer, &command.dstRect);
+    } else {
       SDL_RenderTexture(renderer, command.tex, &command.srcRect,
                         &command.dstRect);
-      changedScale = true;
     }
   }
 }
@@ -240,6 +245,34 @@ void collectNineSlices(Registry &reg, RenderContext &ctx) {
     drawNineSlice(nineSlice, ctx);
 }
 
+void collectRectRenderers(Registry &reg, RenderContext &ctx) {
+  CameraOffsets off = computeCameraOffsets(reg, ctx);
+  for (auto [rect, transform] : reg.view<RectRenderer, Transform>()) {
+    glm::vec2 o = off.pick(rect.isUi, rect.useRenderScale);
+    float x = transform.lPos.x - o.x;
+    float y = transform.lPos.y - o.y;
+    SDL_Color col = {rect.color.r, rect.color.g, rect.color.b,
+                     static_cast<Uint8>(rect.alpha)};
+    ctx.renderQueue.emplace_back(SDL_FRect{x, y, rect.width, rect.height}, col,
+                                 rect.zIndex, rect.isUi);
+  }
+}
+
+void collectProgressBars(Registry &reg, RenderContext &ctx) {
+  CameraOffsets off = computeCameraOffsets(reg, ctx);
+  for (auto [bar, transform] : reg.view<ProgressBar, Transform>()) {
+    glm::vec2 o = off.pick(bar.isUi, true);
+    float x = transform.lPos.x - o.x;
+    float y = transform.lPos.y - o.y;
+
+    ctx.renderQueue.emplace_back(SDL_FRect{x, y, bar.w, bar.h}, bar.bgColor,
+                                 bar.zIndex, bar.isUi);
+    ctx.renderQueue.emplace_back(
+        SDL_FRect{x, y, bar.displayValue * bar.w, bar.h}, bar.fillColor,
+        bar.zIndex + 1, bar.isUi);
+  }
+}
+
 void renderSystem(Registry &reg, RenderContext &ctx) {
   CameraOffsets off = computeCameraOffsets(reg, ctx);
 
@@ -247,6 +280,8 @@ void renderSystem(Registry &reg, RenderContext &ctx) {
   collectSprites(reg, ctx, off);
   collectText(reg, ctx, off);
   collectNineSlices(reg, ctx);
+  collectRectRenderers(reg, ctx);
+  collectProgressBars(reg, ctx);
 
   sortRenderQueue(ctx.renderQueue);
   drawRenderQueue(ctx);

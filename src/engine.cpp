@@ -1,6 +1,6 @@
 #include "velox/engine.h"
 #include "velox/camera.h"
-#include "velox/components/ui.h"
+#include "velox/components/ui/ui.h"
 #include "velox/systems/animationSystem.h"
 #include "velox/systems/collisionSystem.h"
 #include "velox/systems/core.h"
@@ -31,6 +31,7 @@ void Engine::update() {
 
   interpolatePosition(m_reg);
   updateCamera(m_reg);
+  updateProgressBars(m_reg);
 
   m_reg.getResource<Input>().reset();
 }
