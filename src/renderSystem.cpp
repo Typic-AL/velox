@@ -5,6 +5,7 @@
 #include "velox/assetManager.h"
 #include "velox/camera.h"
 #include "velox/components/core.h"
+#include "velox/components/tintable.h"
 #include "velox/components/ui/ui.h"
 #include "velox/registry.h"
 
@@ -50,13 +51,16 @@ void drawRenderQueue(RenderContext &ctx) {
                              command.color.b, command.color.a);
       SDL_RenderFillRect(renderer, &command.dstRect);
     } else {
+      SDL_SetTextureColorMod(command.tex, command.color.r, command.color.g,
+                             command.color.b);
+      SDL_SetTextureAlphaMod(command.tex, command.color.a);
       SDL_RenderTexture(renderer, command.tex, &command.srcRect,
                         &command.dstRect);
     }
   }
 }
 
-void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx) {
+void drawNineSlice(NineSlice &nineSlice, SDL_Color tint, RenderContext &ctx) {
   SDL_Texture *tex = ctx.assetMan->idToTex(nineSlice.id);
   if (!tex)
     return;
@@ -103,7 +107,8 @@ void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx) {
 
   for (int i = 0; i < 9; i++) {
     ctx.renderQueue.emplace_back(tex, dst[i], src[i], nineSlice.zIndex,
-                                 nineSlice.space, nineSlice.useRenderScale);
+                                 nineSlice.space, nineSlice.useRenderScale,
+                                 tint);
   }
 }
 
@@ -206,15 +211,19 @@ void collectTilemaps(Registry &reg, RenderContext &ctx,
 
 void collectSprites(Registry &reg, RenderContext &ctx,
                     const CameraOffsets &off) {
-  for (auto [sprite, transform] : reg.view<SpriteRenderer, Transform>()) {
+  for (auto [sprite, transform, entity] :
+       reg.view<SpriteRenderer, Transform>().withEntity()) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
     glm::vec2 o = off.pick(sprite.space, sprite.useRenderScale);
+    SDL_Color tint = reg.has<Tintable>(entity)
+                         ? reg.get<Tintable>(entity).tint
+                         : SDL_Color{255, 255, 255, 255};
     ctx.renderQueue.emplace_back(
         tex,
         SDL_FRect{transform.lPos.x - o.x, transform.lPos.y - o.y, sprite.width,
                   sprite.height},
-        sprite.src, sprite.zIndex, sprite.space, sprite.useRenderScale);
+        sprite.src, sprite.zIndex, sprite.space, sprite.useRenderScale, tint);
   }
 }
 
@@ -242,18 +251,30 @@ void collectText(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
 }
 
 void collectNineSlices(Registry &reg, RenderContext &ctx) {
-  for (auto [nineSlice] : reg.view<NineSlice>())
-    drawNineSlice(nineSlice, ctx);
+  for (auto [nineSlice, entity] : reg.view<NineSlice>().withEntity()) {
+    SDL_Color tint = reg.has<Tintable>(entity)
+                         ? reg.get<Tintable>(entity).tint
+                         : SDL_Color{255, 255, 255, 255};
+    drawNineSlice(nineSlice, tint, ctx);
+  }
 }
 
 void collectRectRenderers(Registry &reg, RenderContext &ctx) {
   CameraOffsets off = computeCameraOffsets(reg, ctx);
-  for (auto [rect, transform] : reg.view<RectRenderer, Transform>()) {
+  for (auto [rect, transform, entity] :
+       reg.view<RectRenderer, Transform>().withEntity()) {
     glm::vec2 o = off.pick(rect.space, rect.useRenderScale);
     float x = transform.lPos.x - o.x;
     float y = transform.lPos.y - o.y;
-    SDL_Color col = {rect.color.r, rect.color.g, rect.color.b,
-                     static_cast<Uint8>(rect.alpha)};
+    SDL_Color tint = reg.has<Tintable>(entity)
+                         ? reg.get<Tintable>(entity).tint
+                         : SDL_Color{255, 255, 255, 255};
+    SDL_Color col = {
+        static_cast<Uint8>(rect.color.r * tint.r / 255),
+        static_cast<Uint8>(rect.color.g * tint.g / 255),
+        static_cast<Uint8>(rect.color.b * tint.b / 255),
+        static_cast<Uint8>(rect.color.a * tint.a / 255),
+    };
     ctx.renderQueue.emplace_back(SDL_FRect{x, y, rect.width, rect.height}, col,
                                  rect.zIndex, rect.space);
   }

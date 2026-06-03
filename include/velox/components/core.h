@@ -51,8 +51,7 @@ struct TextRenderer {
 };
 struct RectRenderer {
   float width, height;
-  SDL_Color color;
-  float alpha = 255;
+  SDL_Color color = {255, 255, 255, 255};
   int zIndex = 0;
   bool useRenderScale = true;
   Space space = Space::WORLD;

@@ -21,13 +21,15 @@ struct RenderCommand {
   bool isRect = false;
 
   RenderCommand(SDL_Texture *tex, SDL_FRect dst, SDL_FRect src, int zIndex,
-                Space space, bool useRenderScale) {
+                Space space, bool useRenderScale,
+                SDL_Color tint = {255, 255, 255, 255}) {
     this->tex = tex;
     dstRect = dst;
     srcRect = src;
     this->zIndex = zIndex;
     this->space = space;
     this->useRenderScale = useRenderScale;
+    this->color = tint;
   }
 
   RenderCommand(SDL_FRect dst, SDL_Color color, int zIndex, Space space) {
@@ -51,7 +53,7 @@ struct RenderContext {
 void renderSystem(Registry &reg, RenderContext &ctx);
 void sortRenderQueue(std::vector<RenderCommand> &renderQueue);
 void drawRenderQueue(RenderContext &ctx);
-void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx);
+void drawNineSlice(NineSlice &nineSlice, SDL_Color tint, RenderContext &ctx);
 void collectRectRenderers(Registry &reg, RenderContext &ctx);
 void collectProgressBars(Registry &reg, RenderContext &ctx);
 

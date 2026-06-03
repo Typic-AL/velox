@@ -10,11 +10,16 @@ namespace vl {
 
 using ButtonCallback = std::function<void(Registry &)>;
 
+enum class ButtonState { IDLE, HOVERED, PRESSED };
+
 struct Button {
   float w, h;
   ButtonCallback callback;
-  bool pressed = false;
+  ButtonState state = ButtonState::IDLE;
   Space space = Space::SCREEN;
+  SDL_Color idleTint = {255, 255, 255, 255};
+  SDL_Color hoverTint = {255, 255, 255, 255};
+  SDL_Color pressedTint = {255, 255, 255, 255};
 };
 
 void handleButtonPresses(Registry &reg, Input &input);

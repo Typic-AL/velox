@@ -1,3 +1,5 @@
+#include "velox/components/core.h"
+#include "velox/components/tintable.h"
 #include "velox/components/ui/ui.h"
 #include "velox/input.h"
 #include "velox/registry.h"
@@ -8,8 +10,14 @@
 
 namespace vl {
 
+static void applyButtonTint(Registry &reg, Entity e, SDL_Color tint) {
+  if (reg.has<Tintable>(e))
+    reg.get<Tintable>(e).tint = tint;
+}
+
 void handleButtonPresses(Registry &reg, Input &input) {
-  for (auto [button, transform] : reg.view<Button, Transform>()) {
+  for (auto [button, transform, entity] :
+       reg.view<Button, Transform>().withEntity()) {
 
     glm::vec2 mousePos = input.getMousePos();
     if (button.space == Space::WORLD)
@@ -18,22 +26,41 @@ void handleButtonPresses(Registry &reg, Input &input) {
     SDL_FPoint mousePoint = {mousePos.x, mousePos.y};
     SDL_FRect rect = {transform.pos.x, transform.pos.y, button.w, button.h};
 
-    if (!(SDL_PointInRectFloat(&mousePoint, &rect)))
-      continue;
+    bool hovered = SDL_PointInRectFloat(&mousePoint, &rect);
+    bool justPressed = input.wasMouseJustPressed(LMB);
+    bool justReleased = input.wasMouseJustReleased(LMB);
 
-    if (input.wasMouseJustPressed(LMB)) {
-      button.pressed = true;
-      continue;
+    ButtonState next = button.state;
+
+    if (!hovered) {
+      if (justReleased)
+        next = ButtonState::IDLE;
+      else if (button.state != ButtonState::PRESSED)
+        next = ButtonState::IDLE;
+    } else if (justPressed) {
+      next = ButtonState::PRESSED;
+    } else if (justReleased && button.state == ButtonState::PRESSED) {
+      next = ButtonState::HOVERED;
+    } else if (button.state == ButtonState::IDLE) {
+      next = ButtonState::HOVERED;
     }
 
-    if (!button.pressed)
-      continue;
+    bool clicked = hovered && justReleased && button.state == ButtonState::PRESSED;
 
-    if (!input.wasMouseJustReleased(LMB))
-      continue;
+    if (next != button.state) {
+      button.state = next;
+      auto tint = [&]() -> SDL_Color {
+        switch (next) {
+        case ButtonState::HOVERED: return button.hoverTint;
+        case ButtonState::PRESSED: return button.pressedTint;
+        default:                   return button.idleTint;
+        }
+      }();
+      applyButtonTint(reg, entity, tint);
+    }
 
-    button.callback(reg);
-    button.pressed = false;
+    if (clicked)
+      button.callback(reg);
   }
 }
 
