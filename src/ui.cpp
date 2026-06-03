@@ -2,17 +2,21 @@
 #include "velox/input.h"
 #include "velox/registry.h"
 #include "velox/renderWindow.h"
+#include "velox/space.h"
 #include "velox/time.h"
 #include <algorithm>
 
 namespace vl {
 
 void handleButtonPresses(Registry &reg, Input &input) {
-  for (auto [button] : reg.view<Button>()) {
+  for (auto [button, transform] : reg.view<Button, Transform>()) {
 
     glm::vec2 mousePos = input.getMousePos();
+    if (button.space == Space::WORLD)
+      mousePos = screenToWorld(reg, mousePos);
+
     SDL_FPoint mousePoint = {mousePos.x, mousePos.y};
-    SDL_FRect rect = {0, 0, button.w, button.h};
+    SDL_FRect rect = {transform.pos.x, transform.pos.y, button.w, button.h};
 
     if (!(SDL_PointInRectFloat(&mousePoint, &rect)))
       continue;
@@ -77,6 +81,7 @@ void anchorTransform(Registry &reg, UIBounds &bounds, Transform &transform,
 
 void updateProgressBars(Registry &reg) {
   for (auto [bar] : reg.view<ProgressBar>()) {
+    bar.value = std::clamp(bar.value, 0.0f, 1.0f);
     float diff = bar.value - bar.displayValue;
     bar.displayValue += diff * std::min(1.0f, bar.speed * Time::deltaTime);
   }

@@ -2,6 +2,7 @@
 
 #include "velox/registry.h"
 #include "velox/resourceIDs.h"
+#include "velox/space.h"
 #include <SDL3/SDL.h>
 
 namespace vl {
@@ -13,7 +14,7 @@ struct NineSlice {
   int zIndex = 0;
   SDL_ScaleMode scaleMode = SDL_SCALEMODE_LINEAR;
   bool useRenderScale = true;
-  bool isUi = true;
+  Space space = Space::SCREEN;
 };
 
 struct ProgressBar {
@@ -24,7 +25,7 @@ struct ProgressBar {
   SDL_Color fillColor = {255, 255, 255, 255};
   SDL_Color bgColor = {50, 50, 50, 255};
   int zIndex = 0;
-  bool isUi = true;
+  Space space = Space::SCREEN;
 };
 
 void updateProgressBars(Registry &reg);

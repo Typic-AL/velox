@@ -12,8 +12,8 @@ namespace vl {
 void sortRenderQueue(std::vector<RenderCommand> &renderQueue) {
   std::stable_sort(renderQueue.begin(), renderQueue.end(),
                    [](const RenderCommand &a, const RenderCommand &b) {
-                     if (a.isUi != b.isUi)
-                       return !a.isUi;
+                     if (a.space != b.space)
+                       return a.space == Space::WORLD;
 
                      if (a.zIndex != b.zIndex)
                        return a.zIndex < b.zIndex;
@@ -102,7 +102,7 @@ void drawNineSlice(NineSlice &nineSlice, RenderContext &ctx) {
 
   for (int i = 0; i < 9; i++) {
     ctx.renderQueue.emplace_back(tex, dst[i], src[i], nineSlice.zIndex,
-                                 nineSlice.isUi, nineSlice.useRenderScale);
+                                 nineSlice.space, nineSlice.useRenderScale);
   }
 }
 
@@ -110,8 +110,8 @@ struct CameraOffsets {
   glm::vec2 scaled{0, 0};
   glm::vec2 raw{0, 0};
 
-  glm::vec2 pick(bool isUi, bool useRenderScale) const {
-    if (isUi)
+  glm::vec2 pick(Space space, bool useRenderScale) const {
+    if (space == Space::SCREEN)
       return {0, 0};
     return useRenderScale ? scaled : raw;
   }
@@ -143,7 +143,7 @@ void collectTilemaps(Registry &reg, RenderContext &ctx,
       continue;
 
     const TilemapData &data = ctx.assetMan->idToTilemap(tilemap.id);
-    glm::vec2 tmOff = off.pick(false, tilemap.useRenderScale);
+    glm::vec2 tmOff = off.pick(Space::WORLD, tilemap.useRenderScale);
     float originX = transform.lPos.x - tmOff.x;
     float originY = transform.lPos.y - tmOff.y;
 
@@ -196,7 +196,7 @@ void collectTilemaps(Registry &reg, RenderContext &ctx,
           SDL_SetTextureAlphaMod(tex,
                                  static_cast<Uint8>(layer.opacity * 255.0f));
           ctx.renderQueue.emplace_back(tex, dst, src, tilemap.zIndex - 1000,
-                                       false, tilemap.useRenderScale);
+                                       Space::WORLD, tilemap.useRenderScale);
         }
       }
     }
@@ -208,12 +208,12 @@ void collectSprites(Registry &reg, RenderContext &ctx,
   for (auto [sprite, transform] : reg.view<SpriteRenderer, Transform>()) {
     SDL_Texture *tex = ctx.assetMan->idToTex(sprite.id);
     SDL_SetTextureScaleMode(tex, sprite.scaleMode);
-    glm::vec2 o = off.pick(sprite.isUi, sprite.useRenderScale);
+    glm::vec2 o = off.pick(sprite.space, sprite.useRenderScale);
     ctx.renderQueue.emplace_back(
         tex,
         SDL_FRect{transform.lPos.x - o.x, transform.lPos.y - o.y, sprite.width,
                   sprite.height},
-        sprite.src, sprite.zIndex, sprite.isUi, sprite.useRenderScale);
+        sprite.src, sprite.zIndex, sprite.space, sprite.useRenderScale);
   }
 }
 
@@ -227,7 +227,7 @@ void collectText(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
     SDL_GetTextureSize(tex, &w, &h);
     SDL_SetTextureScaleMode(tex, text.pixelFont ? SDL_SCALEMODE_NEAREST
                                                 : SDL_SCALEMODE_LINEAR);
-    glm::vec2 o = off.pick(text.isUi, text.useRenderScale);
+    glm::vec2 o = off.pick(text.space, text.useRenderScale);
     float x = transform.lPos.x - o.x;
     float y = transform.lPos.y - o.y;
     if (text.centered) {
@@ -235,7 +235,7 @@ void collectText(Registry &reg, RenderContext &ctx, const CameraOffsets &off) {
       y -= h / 2.0f;
     }
     ctx.renderQueue.emplace_back(tex, SDL_FRect{x, y, w, h},
-                                 SDL_FRect{0, 0, w, h}, text.zIndex, text.isUi,
+                                 SDL_FRect{0, 0, w, h}, text.zIndex, text.space,
                                  text.useRenderScale);
   }
 }
@@ -248,28 +248,28 @@ void collectNineSlices(Registry &reg, RenderContext &ctx) {
 void collectRectRenderers(Registry &reg, RenderContext &ctx) {
   CameraOffsets off = computeCameraOffsets(reg, ctx);
   for (auto [rect, transform] : reg.view<RectRenderer, Transform>()) {
-    glm::vec2 o = off.pick(rect.isUi, rect.useRenderScale);
+    glm::vec2 o = off.pick(rect.space, rect.useRenderScale);
     float x = transform.lPos.x - o.x;
     float y = transform.lPos.y - o.y;
     SDL_Color col = {rect.color.r, rect.color.g, rect.color.b,
                      static_cast<Uint8>(rect.alpha)};
     ctx.renderQueue.emplace_back(SDL_FRect{x, y, rect.width, rect.height}, col,
-                                 rect.zIndex, rect.isUi);
+                                 rect.zIndex, rect.space);
   }
 }
 
 void collectProgressBars(Registry &reg, RenderContext &ctx) {
   CameraOffsets off = computeCameraOffsets(reg, ctx);
   for (auto [bar, transform] : reg.view<ProgressBar, Transform>()) {
-    glm::vec2 o = off.pick(bar.isUi, true);
+    glm::vec2 o = off.pick(bar.space, true);
     float x = transform.lPos.x - o.x;
     float y = transform.lPos.y - o.y;
 
     ctx.renderQueue.emplace_back(SDL_FRect{x, y, bar.w, bar.h}, bar.bgColor,
-                                 bar.zIndex, bar.isUi);
+                                 bar.zIndex, bar.space);
     ctx.renderQueue.emplace_back(
         SDL_FRect{x, y, bar.displayValue * bar.w, bar.h}, bar.fillColor,
-        bar.zIndex + 1, bar.isUi);
+        bar.zIndex + 1, bar.space);
   }
 }
 

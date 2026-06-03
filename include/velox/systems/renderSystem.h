@@ -2,6 +2,7 @@
 
 #include "velox/assetManager.h"
 #include "velox/components/ui/ui.h"
+#include "velox/space.h"
 #include <vector>
 
 namespace vl {
@@ -16,24 +17,24 @@ struct RenderCommand {
   SDL_Color color = {255, 255, 255, 255};
   int zIndex = 0;
   bool useRenderScale = true;
-  bool isUi = false;
+  Space space = Space::WORLD;
   bool isRect = false;
 
   RenderCommand(SDL_Texture *tex, SDL_FRect dst, SDL_FRect src, int zIndex,
-                bool isUi, bool useRenderScale) {
+                Space space, bool useRenderScale) {
     this->tex = tex;
     dstRect = dst;
     srcRect = src;
     this->zIndex = zIndex;
-    this->isUi = isUi;
+    this->space = space;
     this->useRenderScale = useRenderScale;
   }
 
-  RenderCommand(SDL_FRect dst, SDL_Color color, int zIndex, bool isUi) {
+  RenderCommand(SDL_FRect dst, SDL_Color color, int zIndex, Space space) {
     dstRect = dst;
     this->color = color;
     this->zIndex = zIndex;
-    this->isUi = isUi;
+    this->space = space;
     isRect = true;
   }
 };

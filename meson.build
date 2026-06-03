@@ -23,6 +23,7 @@ src = [
   'src/animation.cpp',
   'src/input.cpp',
   'src/ui.cpp',
+  'src/space.cpp',
   'src/tilemap.cpp',
 ]
 

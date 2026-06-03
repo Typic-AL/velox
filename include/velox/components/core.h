@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../resourceIDs.h"
+#include "../space.h"
 
 namespace vl {
 
@@ -32,7 +33,7 @@ struct SpriteRenderer {
   SDL_FRect src{};
   float width;
   float height;
-  bool isUi = false;
+  Space space = Space::WORLD;
   bool useRenderScale = true;
   SDL_ScaleMode scaleMode = SDL_SCALEMODE_LINEAR;
 };
@@ -46,7 +47,7 @@ struct TextRenderer {
   bool centered = false;
   bool pixelFont = false;
   bool useRenderScale = false;
-  bool isUi = true;
+  Space space = Space::SCREEN;
 };
 struct RectRenderer {
   float width, height;
@@ -54,7 +55,7 @@ struct RectRenderer {
   float alpha = 255;
   int zIndex = 0;
   bool useRenderScale = true;
-  bool isUi = false;
+  Space space = Space::WORLD;
 };
 
 } // namespace vl
