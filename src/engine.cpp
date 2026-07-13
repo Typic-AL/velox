@@ -15,6 +15,8 @@ bool Engine::init(const char *title, int width, int height) {
     return false;
   if (m_assetMan.parseManifest() == false)
     return false;
+  if (m_assetMan.initAudio() == false)
+    return false;
   return true;
 }
 

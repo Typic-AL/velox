@@ -2,60 +2,53 @@
 
 <div align="center">
 
-### A performance-focused 2D game engine built with C++ and SDL3
+### A 2D game engine built with C++ and SDL3
 
 [![C++](https://img.shields.io/badge/C++-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)]()
 [![Status](https://img.shields.io/badge/Status-In_Development-yellow?style=for-the-badge)]()
 
 </div>
 
----
-
 ## Overview
 
-A modern 2D game engine built from the ground up in C++, leveraging Entity Component System (ECS) architecture for maximum performance and flexibility. The goal of this engine is to provide the foundation to create a wide variety of 2d games.
+Velox is my attempt at making a 2D game engine in C++. It's built on top of SDL3 and uses an Entity Component System (ECS), which is known for cache locality and general performance, hence the name "velox", meaning quick in latin.
 
----
+The main goal of this project is to create a tool that can be used to create games using C++ all in the comfort of your IDE. It's meant to essentially be a framework, except you don't have to waste time creating basic systems that virtually every game needs, such as collisions, asset management, rendering pipelines, tilemaps, sound effects, you get the idea.
 
 ## Architecture
 
 **Entity Component System (ECS)**
 
-The engine is built on ECS principles, separating data from behavior for optimal performance:
+- **Entities:** a number used to group components together, essentially a GameObject from Unity, but it doesn't actually contain any components. It's more that components are associated with/attached to it
+- **Components:** pure data structs that are "attached" to an entity, for example a sprite renderer or collider
+- **Systems:** functions that process entities matching a set of components, instead of creating a class with a polymorphic update function, you create a system instead
 
-- **Entities**: Lightweight identifiers for game objects
-- **Components**: Pure data containers with no logic
-- **Systems**: Process entities with specific component combinations
+Component storage uses sparse sets, and the `Registry` also allows for the storage of resources(which are effectively singletons) such as the `AssetManager` and `Input`.
 
-This architecture enables:
-- Cache-friendly data layout
-- Easy parallelization opportunities
-- Flexible composition of game objects
-- Minimal memory overhead
+Not every part of the engine is created inside the ECS, for example asset manager, engine class, input, etc. ECS only applies to _game_ logic, not all engine code
 
-Not every aspect of this engine has logic separted from data however. Classes such as the engine, asset manager, and registry are designed this way to make using them a lot more straightforward, especially because of how often these are designed to be used when creating a game.
+## Required Dependencies (for now)
 
----
-
-## Required Dependencies
 - SDL3
 - SDL3_image
 - SDL3_ttf
-
----
+- SDL3_mixer
 
 ## Building
 
-**This engine is designed to be used as a Meson subproject using the Meson build system**
+**This engine is currently designed to be used as a Meson subproject.**
 
-***Currently building is designed for Linux and macOS***
+**_Building has only been tested on MacOS and Linux_**
 
-Add this engine to your project's subprojects directory - symlink is fine too:
+Add the engine to your project's subprojects directory, you can also use a symlink if you want:
 
 ```bash
+cd your_game/directory
 git clone https://github.com/Typic-AL/velox subprojects/velox
 ```
-Then in your meson.build:
+
+Then in your `meson.build`:
+
 ```meson
 project(
   'your_game',
@@ -64,44 +57,43 @@ project(
   meson_version: '>= 1.3.0',
   default_options: ['cpp_std=c++20'],
 )
-sdl_dep = dependency('sdl3')
-image_dep = dependency('sdl3-image')
-ttf_dep = dependency('sdl3-ttf')
 
 velox_dep = subproject('velox').get_variable('velox_dep')
 
 src = ['main.cpp']
 executable('your_game',
   src,
-  dependencies: [sdl_dep, image_dep, ttf_dep, velox_dep]
+  dependencies: [velox_dep]
 )
 ```
-Then to actually build your game simply do:
+
+`velox_dep` includes velox, as well as all of the SDL3 dependencies
+
+Then build your game:
+
 ```bash
-mkdir build
 meson setup build
 meson compile -C build
 ```
----
 
 ## Basic Game Loop
 
-```c++
+```cpp
 #include <velox/engine.h>
 
 int main(int argc, char *argv[]) {
   vl::Engine engine;
   engine.init("My Game", 1280, 720);
 
-  engine.setMaxFPS(144); // max fps is 60 by default
-  engine.setPhysicsFPS(60); // physics fps is also 60 by default
+  engine.setMaxFPS(144);     // default is 60
+  engine.setPhysicsFPS(60);  // default is 60
 
   bool running = true;
   SDL_Event event;
 
-  while(running) {
-    while(SDL_PollEvent(&event)) {
-      if(event.type == SDL_EVENT_QUIT)
+  while (running) {
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_EVENT_QUIT)
         running = false;
     }
 
@@ -112,50 +104,33 @@ int main(int argc, char *argv[]) {
 
     engine.endFrame();
   }
-
 }
 ```
----
 
 ## Current Features
 
-- Basic rendering system using the SDL renderer pipeline
-- Simple asset pipeline using an assets.yml config file
-- An AABB collision system with customizable behavior on collision
-- Simple sprite animations customized using json files
-- Scene system
-- Simple input system for detecting key presses and mouse updates
-
----
+- Physics loop with a separate physics framerate and physics interpolation
+- AABB collision system using sweep and prune, which has layer masks and enter/exit/stay callbacks
+- Sprite, text, and rectangle rendering with z-index ordering
+- Screen-space vs. world-space rendering per component
+- Sprite animations via `.json` files (will probably be reworked at some point)
+- Tiled tilemap support using the `.tmj` format, including rendering and also tilemap collisions
+- Basic camera with target following, deadzone, smoothing, and bounds clamping
+- Minimal, subject to change, UI system with buttons, progress bars, nine slice, and anchoring
+- Asset pipeline using an `assets.json` config, allowing for file paths to be abbreviated into asset IDs
+- Simple audio system allowing for playback of .mp3, .wav, etc. through a simple playSound() function
 
 ## Project Status
 
-This engine is currently **in development**. Core systems are functional but the feature set is being actively expanded.
+This engine is clearly **still in development**. Most core systems are functional, but there are definitely things that need to be added/improved still.
 
 ### Planned Features
 
-- Audio system
+- More UI elements/UI overhaul
+- Refined audio system
 - Particle effects
-- Tilemap support via Tiled
 - Serialization system
-- UI system
-
----
 
 ## Contributing
 
-This is a personal learning project and is not currently accepting contributions. However, feedback and suggestions are always welcome.
-
----
-
-## Roadmap
-
-Development priorities are focused on:
-1. Completing core engine systems
-2. Performance optimization
-3. Documentation and examples
-
----
-<div align="center">
-
-</div>
+This is a personal learning project and is not currently accepting contributions. Feedback and suggestions are always welcome.

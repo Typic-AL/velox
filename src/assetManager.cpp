@@ -1,4 +1,5 @@
 #include "velox/assetManager.h"
+#include <SDL3_mixer/SDL_mixer.h>
 #include <charconv>
 #include <filesystem>
 #include <fstream>
@@ -6,14 +7,16 @@
 #include <memory>
 
 #include "velox/renderWindow.h"
+#include "velox/resourceIDs.h"
 
 namespace {
 // Tiled percent-encodes special characters in file paths (spaces -> %20, etc.).
 std::string percentDecode(std::string s) {
-  for (size_t i = 0; i + 2 < s.size(); ) {
+  for (size_t i = 0; i + 2 < s.size();) {
     if (s[i] == '%') {
       unsigned ch = 0;
-      if (std::from_chars(s.data() + i + 1, s.data() + i + 3, ch, 16).ec == std::errc{}) {
+      if (std::from_chars(s.data() + i + 1, s.data() + i + 3, ch, 16).ec ==
+          std::errc{}) {
         s.replace(i, 3, 1, static_cast<char>(ch));
       }
     }
@@ -35,6 +38,7 @@ bool AssetManager::parseManifest() {
     parseTextures(config);
     parseFonts(config);
     parseAnims(config);
+    parseAudio(config);
     parseTilemaps(config);
     return true;
   } catch (const json::parse_error &e) {
@@ -49,72 +53,105 @@ bool AssetManager::parseManifest() {
   }
 }
 
+bool AssetManager::initAudio() {
+  if (!MIX_Init()) {
+    SDL_Log("Couldn't init SDL_mixer: %s", SDL_GetError());
+    return false;
+  }
+
+  m_mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
+  if (!m_mixer) {
+    SDL_Log("Couldn't create mixer: %s", SDL_GetError());
+    return false;
+  }
+
+  m_trackPool.reserve(defaultTrackPoolSize);
+  for (size_t i = 0; i < defaultTrackPoolSize; i++) {
+    MIX_Track *raw = MIX_CreateTrack(m_mixer);
+    if (raw) {
+      m_trackPool.emplace_back(raw, trackDeleter);
+    }
+  }
+  return true;
+}
+
+MIX_Track *AssetManager::getFreeTrack() {
+  for (auto &track : m_trackPool) {
+    if (!MIX_TrackPlaying(track.get()))
+      return track.get();
+
+    MIX_Track *raw = MIX_CreateTrack(m_mixer);
+    if (!raw) {
+      SDL_Log("Couldn't create track: %s", SDL_GetError());
+      return nullptr;
+    }
+
+    m_trackPool.emplace_back(raw, trackDeleter);
+    return m_trackPool.back().get();
+  }
+}
+
 void AssetManager::parseTextures(const json &config) {
-  if (!config.contains("textures") || !config["textures"].is_array()) {
+  if (!config.contains("textures") || !config["textures"].is_object()) {
     std::cout << "[Asset Manager] No 'textures' section found or it's not a "
-                 "sequence\n";
+                 "map\n";
     return;
   }
-  const json &texNode = config["textures"];
-  for (const auto &texEntry : texNode) {
-    if (!texEntry.is_object()) {
-      std::cerr
-          << "[Asset Manager] Unexpected non-map node in 'textures' entry\n";
+  for (const auto &[id, path] : config["textures"].items()) {
+    if (!path.is_string()) {
+      std::cerr << "[Asset Manager] Malformed texture entry '" << id
+                << "' (path is not a string)\n";
       continue;
     }
-    if (!texEntry.contains("id") || !texEntry["id"].is_string()) {
-      std::cerr << "[Asset Manager] Malformed texture entry (missing an 'id', "
-                   "'path', or wrong type)\n";
-      continue;
-    }
-    m_texMap[texEntry["id"].get<std::string>()] =
-        texEntry["path"].get<std::string>();
+    m_texMap[id] = path.get<std::string>();
   }
 }
 
 void AssetManager::parseFonts(const json &config) {
-  if (!config.contains("fonts") || !config["fonts"].is_array()) {
+  if (!config.contains("fonts") || !config["fonts"].is_object()) {
     std::cout << "[Asset Manager] No 'fonts' section found or it's not a "
-                 "sequence\n";
+                 "map\n";
     return;
   }
-  const json &fontNode = config["fonts"];
-  for (const auto &fontEntry : fontNode) {
-    if (!fontEntry.is_object()) {
-      std::cerr << "[Asset Manager] Unexpected non-map node in 'fonts' entry\n";
+  for (const auto &[id, path] : config["fonts"].items()) {
+    if (!path.is_string()) {
+      std::cerr << "[Asset Manager] Malformed font entry '" << id
+                << "' (path is not a string)\n";
       continue;
     }
-    if (!fontEntry.contains("id") || !fontEntry["id"].is_string()) {
-      std::cerr << "[Asset Manager] Malformed font entry (missing an 'id', "
-                   "'path', or wrong type)\n";
-      continue;
-    }
-    m_fontMap[fontEntry["id"].get<std::string>()] =
-        fontEntry["path"].get<std::string>();
+    m_fontMap[id] = path.get<std::string>();
   }
 }
 
 void AssetManager::parseAnims(const json &config) {
-  if (!config.contains("animations") || !config["animations"].is_array()) {
-    std::cout << "[Asset Manager] No 'animations' section found or it's not a "
-                 "sequence\n";
+  if (!config.contains("animations") || !config["animations"].is_object()) {
+    std::cout << "[Asset Manager] No 'animations' section found or it's not "
+                 "a map\n";
     return;
   }
-  const json &animNode = config["animations"];
-  for (const auto &animEntry : animNode) {
-    if (!animEntry.is_object()) {
-      std::cerr << "[Asset Manager] Unexpected non-object node in 'animations' "
-                   "entry\n";
+  for (const auto &[id, path] : config["animations"].items()) {
+    if (!path.is_string()) {
+      std::cerr << "[Asset Manager] Malformed animation entry '" << id
+                << "' (path is not a string)\n";
       continue;
     }
-    if (!animEntry.contains("id") || !animEntry["id"].is_string() ||
-        !animEntry.contains("path") || !animEntry["path"].is_string()) {
-      std::cerr << "[Asset Manager] Malformed animation entry (missing or "
-                   "invalid 'id'/'path')\n";
+    m_animMap[id] = path.get<std::string>();
+  }
+}
+
+void AssetManager::parseAudio(const json &config) {
+  if (!config.contains("audio") || !config["audio"].is_object()) {
+    std::cout << "[Asset Manager] No 'audio' section found or it's not a "
+                 "map\n";
+    return;
+  }
+  for (const auto &[id, path] : config["audio"].items()) {
+    if (!path.is_string()) {
+      std::cerr << "[Asset Manager] Malformed audio entry '" << id
+                << "' (path is not a string)\n";
       continue;
     }
-    m_animMap[animEntry["id"].get<std::string>()] =
-        animEntry["path"].get<std::string>();
+    m_audioMap[id] = path.get<std::string>();
   }
 }
 
@@ -149,18 +186,21 @@ SDL_Texture *AssetManager::loadTextureFromPath(const std::string &path) {
 
   SDL_Surface *surface = IMG_Load(path.c_str());
   if (!surface) {
-    SDL_Log("[Asset Manager] Unable to load image from path %s! SDL_image Error: %s\n",
+    SDL_Log("[Asset Manager] Unable to load image from path %s! SDL_image "
+            "Error: %s\n",
             path.c_str(), SDL_GetError());
     return nullptr;
   }
-  SDL_Texture *tex = SDL_CreateTextureFromSurface(m_renderWindow->getRen(), surface);
+  SDL_Texture *tex =
+      SDL_CreateTextureFromSurface(m_renderWindow->getRen(), surface);
   SDL_DestroySurface(surface);
   if (!tex) {
     SDL_Log("[Asset Manager] Unable to create texture from %s! SDL Error: %s\n",
             path.c_str(), SDL_GetError());
     return nullptr;
   }
-  m_texCache[path] = std::unique_ptr<SDL_Texture, decltype(texDeleter)>(tex, texDeleter);
+  m_texCache[path] =
+      std::unique_ptr<SDL_Texture, decltype(texDeleter)>(tex, texDeleter);
   return tex;
 }
 
@@ -186,7 +226,7 @@ TTF_Font *AssetManager::idToFont(FontID id, int size) {
 }
 
 SDL_Texture *AssetManager::getTextTex(const std::string &text, FontID id,
-                                           int size, SDL_Color color) {
+                                      int size, SDL_Color color) {
   TextKey key{text, id, size, color};
   auto it = m_textCache.find(key);
   if (it != m_textCache.end())
@@ -194,7 +234,8 @@ SDL_Texture *AssetManager::getTextTex(const std::string &text, FontID id,
   TTF_Font *font = idToFont(id, size);
   if (!font)
     return nullptr;
-  SDL_Surface *surface = TTF_RenderText_Blended(font, text.c_str(), text.size(), color);
+  SDL_Surface *surface =
+      TTF_RenderText_Blended(font, text.c_str(), text.size(), color);
   if (!surface) {
     SDL_Log("[Asset Manager] Failed to render text \"%s\": %s\n", text.c_str(),
             SDL_GetError());
@@ -266,17 +307,29 @@ const SpriteAnimation &AssetManager::idToAnim(AnimID id) {
   return m_animCache[id];
 }
 
+MIX_Audio *AssetManager::idToAudio(AudioID id) {
+  MIX_Audio *audio = nullptr;
+  audio = MIX_LoadAudio(m_mixer, m_audioMap[id].c_str(), false);
+
+  if (!audio)
+    SDL_Log("Couldn't load %s: %s", m_audioMap[id].c_str(), SDL_GetError());
+
+  return audio;
+}
+
 void AssetManager::parseTilemaps(const json &config) {
-  if (!config.contains("tilemaps") || !config["tilemaps"].is_array()) {
-    std::cout << "[Asset Manager] No 'tilemaps' section found or it's not a sequence\n";
+  if (!config.contains("tilemaps") || !config["tilemaps"].is_object()) {
+    std::cout << "[Asset Manager] No 'tilemaps' section found or it's not a "
+                 "map\n";
     return;
   }
-  for (const auto &entry : config["tilemaps"]) {
-    if (!entry.contains("id") || !entry.contains("path")) {
-      std::cerr << "[Asset Manager] Malformed tilemap entry (missing 'id' or 'path')\n";
+  for (const auto &[id, path] : config["tilemaps"].items()) {
+    if (!path.is_string()) {
+      std::cerr << "[Asset Manager] Malformed tilemap entry '" << id
+                << "' (path is not a string)\n";
       continue;
     }
-    m_tilemapMap[entry["id"].get<std::string>()] = entry["path"].get<std::string>();
+    m_tilemapMap[id] = path.get<std::string>();
   }
 }
 
@@ -291,45 +344,55 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
 
   std::ifstream file(mapIt->second);
   if (!file.is_open())
-    throw std::runtime_error("[Asset Manager] Failed to open tilemap file: " + mapIt->second);
+    throw std::runtime_error("[Asset Manager] Failed to open tilemap file: " +
+                             mapIt->second);
 
   json data = json::parse(file);
 
   TilemapData tilemap;
-  tilemap.tileWidth  = data.value("tilewidth",  0);
+  tilemap.tileWidth = data.value("tilewidth", 0);
   tilemap.tileHeight = data.value("tileheight", 0);
-  tilemap.mapWidth   = data.value("width",  0);
-  tilemap.mapHeight  = data.value("height", 0);
+  tilemap.mapWidth = data.value("width", 0);
+  tilemap.mapHeight = data.value("height", 0);
 
   // Parse tilesets. Three cases are supported:
-  //   1. External JSON tileset (.tsj) via "source" field — parsed here, texture auto-loaded.
-  //   2. Embedded tileset with an "image" field — texture auto-loaded relative to the .tmj.
-  //   3. Legacy fallback — no "image" field; textureId is the tileset "name" and must be
+  //   1. External JSON tileset (.tsj) via "source" field — parsed here, texture
+  //   auto-loaded.
+  //   2. Embedded tileset with an "image" field — texture auto-loaded relative
+  //   to the .tmj.
+  //   3. Legacy fallback — no "image" field; textureId is the tileset "name"
+  //   and must be
   //      registered in assets.json manually.
-  // XML tilesets (.tsx) are not supported — Tiled exports identical data as JSON (.tsj).
-  std::filesystem::path mapDir = std::filesystem::path(mapIt->second).parent_path();
+  // XML tilesets (.tsx) are not supported — Tiled exports identical data as
+  // JSON (.tsj).
+  std::filesystem::path mapDir =
+      std::filesystem::path(mapIt->second).parent_path();
 
   for (const auto &ts : data.value("tilesets", json::array())) {
     int firstGid = ts.value("firstgid", 1);
 
-    // Determine where the tileset data lives and which directory image paths are relative to.
+    // Determine where the tileset data lives and which directory image paths
+    // are relative to.
     json tsData;
     std::filesystem::path baseDir;
 
     if (ts.contains("source") && ts["source"].is_string()) {
-      // External tileset reference — Tiled stores tileset data in a separate file.
+      // External tileset reference — Tiled stores tileset data in a separate
+      // file.
       std::string srcRel = percentDecode(ts["source"].get<std::string>());
       std::filesystem::path srcPath = (mapDir / srcRel).lexically_normal();
       std::string ext = srcPath.extension().string();
 
       if (ext == ".tsx") {
         SDL_Log("[Asset Manager] XML tilesets (.tsx) are not supported. "
-                "Convert '%s' to JSON (.tsj) in Tiled or embed the tileset in the map.\n",
+                "Convert '%s' to JSON (.tsj) in Tiled or embed the tileset in "
+                "the map.\n",
                 srcRel.c_str());
         continue;
       }
       if (ext != ".tsj") {
-        SDL_Log("[Asset Manager] Unknown tileset source format '%s'; only .tsj (JSON) is supported.\n",
+        SDL_Log("[Asset Manager] Unknown tileset source format '%s'; only .tsj "
+                "(JSON) is supported.\n",
                 srcRel.c_str());
         continue;
       }
@@ -342,7 +405,8 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
       }
 
       json rawTs = json::parse(tsFile);
-      // Tiled wraps external tileset data in a "tileset" key with a type marker.
+      // Tiled wraps external tileset data in a "tileset" key with a type
+      // marker.
       if (rawTs.contains("tileset") && rawTs.value("type", "") == "tileset")
         tsData = rawTs["tileset"];
       else
@@ -355,22 +419,23 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
     }
 
     TilemapTileset tileset;
-    tileset.firstGid   = firstGid;
-    tileset.tileWidth  = tsData.value("tilewidth",  tilemap.tileWidth);
+    tileset.firstGid = firstGid;
+    tileset.tileWidth = tsData.value("tilewidth", tilemap.tileWidth);
     tileset.tileHeight = tsData.value("tileheight", tilemap.tileHeight);
-    tileset.columns    = tsData.value("columns",    0);
-    tileset.tileCount  = tsData.value("tilecount",  0);
+    tileset.columns = tsData.value("columns", 0);
+    tileset.tileCount = tsData.value("tilecount", 0);
 
-    // Resolve and load the tileset texture. If the tileset specifies an "image" field,
-    // we auto-load it relative to the tileset file's directory and use the resolved
-    // path as the textureId cache key — no assets.json entry required.
+    // Resolve and load the tileset texture. If the tileset specifies an "image"
+    // field, we auto-load it relative to the tileset file's directory and use
+    // the resolved path as the textureId cache key — no assets.json entry
+    // required.
     if (tsData.contains("image") && tsData["image"].is_string()) {
       std::string imgRel = percentDecode(tsData["image"].get<std::string>());
       std::filesystem::path imgPath = (baseDir / imgRel).lexically_normal();
       std::string imgStr = imgPath.string();
 
       if (loadTextureFromPath(imgStr)) {
-        tileset.textureId = imgStr;  // path-keyed lookup in m_texCache
+        tileset.textureId = imgStr; // path-keyed lookup in m_texCache
       } else {
         SDL_Log("[Asset Manager] Failed to auto-load tileset texture: %s. "
                 "Falling back to tileset name '%s'.\n",
@@ -378,14 +443,15 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
         tileset.textureId = tsData.value("name", "");
       }
     } else {
-      // No image field — legacy contract: tileset "name" must be registered in assets.json.
+      // No image field — legacy contract: tileset "name" must be registered in
+      // assets.json.
       tileset.textureId = tsData.value("name", "");
     }
 
     tilemap.tilesets.push_back(std::move(tileset));
 
-	    // Build collision map from tile objectgroups.
-	    for (const auto &tile : tsData.value("tiles", json::array())) {
+    // Build collision map from tile objectgroups.
+    for (const auto &tile : tsData.value("tiles", json::array())) {
       int tileId = tile.value("id", -1);
       if (tileId < 0 || !tile.contains("objectgroup"))
         continue;
@@ -411,10 +477,10 @@ const TilemapData &AssetManager::idToTilemap(TilemapID id) {
       continue;
 
     TilemapLayer tl;
-    tl.name    = layer.value("name",    "");
-    tl.id      = layer.value("id",      0);
-    tl.width   = layer.value("width",   0);
-    tl.height  = layer.value("height",  0);
+    tl.name = layer.value("name", "");
+    tl.id = layer.value("id", 0);
+    tl.width = layer.value("width", 0);
+    tl.height = layer.value("height", 0);
     tl.offsetX = layer.value("offsetx", 0.0f);
     tl.offsetY = layer.value("offsety", 0.0f);
     tl.opacity = layer.value("opacity", 1.0f);

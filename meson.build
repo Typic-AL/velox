@@ -9,10 +9,11 @@ project(
 sdl_dep = dependency('sdl3')
 image_dep = dependency('sdl3-image')
 ttf_dep = dependency('sdl3-ttf')
+mixer_dep = dependency('sdl3-mixer')
+
+velox_deps = [sdl_dep, image_dep, ttf_dep, mixer_dep]
 
 velox_inc = include_directories('include')
-
-dependencies = [sdl_dep, image_dep, ttf_dep]
 
 src = [
   'src/renderWindow.cpp',
@@ -27,16 +28,15 @@ src = [
   'src/tilemap.cpp',
 ]
 
-velox = library(
+velox = static_library(
   'velox',
   src,
   include_directories: velox_inc,
-  dependencies: [sdl_dep, image_dep, ttf_dep],
-  install: true,
+  dependencies: velox_deps,
 )
 
 velox_dep = declare_dependency(
   include_directories: velox_inc,
   link_with: velox,
-  dependencies: [sdl_dep, image_dep, ttf_dep],
+  dependencies: velox_deps,
 )

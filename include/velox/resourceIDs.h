@@ -6,3 +6,4 @@ using TextureID = std::string;
 using FontID = std::string;
 using AnimID = std::string;
 using TilemapID = std::string;
+using AudioID = std::string;

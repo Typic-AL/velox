@@ -1,11 +1,14 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_audio.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include "components/animation.h"
 #include "components/tilemap.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -30,6 +33,16 @@ inline auto fontDeleter = [](TTF_Font *font) {
     TTF_CloseFont(font);
 };
 
+inline auto trackDeleter = [](MIX_Track *track) {
+  if (track)
+    MIX_DestroyTrack(track);
+};
+
+inline auto audioDeleter = [](MIX_Audio *audio) {
+  if (audio)
+    MIX_DestroyAudio(audio);
+};
+
 class AssetManager {
 private:
   std::unordered_map<TextureID,
@@ -40,6 +53,9 @@ private:
                      PairHash<FontID, int>>
       m_fontCache;
   std::unordered_map<AnimID, SpriteAnimation> m_animCache;
+  std::unordered_map<AudioID,
+                     std::unique_ptr<MIX_Audio, decltype(audioDeleter)>>
+      m_audioCache;
 
   struct TextKey {
     std::string text;
@@ -71,8 +87,14 @@ private:
   std::unordered_map<TextureID, std::string> m_texMap;
   std::unordered_map<FontID, std::string> m_fontMap;
   std::unordered_map<AnimID, std::string> m_animMap;
+  std::unordered_map<AudioID, std::string> m_audioMap;
+
   std::unordered_map<TilemapID, std::string> m_tilemapMap;
   std::unordered_map<TilemapID, TilemapData> m_tilemapCache;
+
+  std::vector<std::unique_ptr<MIX_Track, decltype(trackDeleter)>> m_trackPool;
+  static constexpr size_t defaultTrackPoolSize = 20;
+  MIX_Mixer *m_mixer;
 
   std::string m_assetsPath = "assets.json";
 
@@ -81,6 +103,7 @@ private:
   void parseTextures(const json &config);
   void parseFonts(const json &config);
   void parseAnims(const json &config);
+  void parseAudio(const json &config);
   void parseTilemaps(const json &config);
 
 public:
@@ -94,6 +117,11 @@ public:
   SDL_Texture *getTextTex(const std::string &text, FontID id, int size,
                           SDL_Color color);
   TTF_Font *idToFont(FontID id, int size);
+
+  MIX_Track *getFreeTrack();
+  MIX_Audio *idToAudio(AudioID id);
+  bool initAudio();
+
   const SpriteAnimation &idToAnim(AnimID id);
   const TilemapData &idToTilemap(TilemapID id);
 };
