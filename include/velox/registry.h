@@ -38,7 +38,7 @@ public:
 
     template <typename... Tags> ViewProxy &with() {
       std::erase_if(entities,
-                    [&](Entity e) { return (!reg.has<Tags>(e) && ...); });
+                    [&](Entity e) { return (!reg.has<Tags>(e) || ...); });
 
       return *this;
     }
@@ -118,6 +118,7 @@ public:
   void clear() {
     nextEntityId = 0;
     m_systems.clear();
+    componentStorages.clear();
   }
 
   template <typename T, typename... Args> T &emplaceResource(Args &&...args) {
@@ -168,9 +169,6 @@ private:
   std::unordered_map<std::type_index, std::unique_ptr<ComponentPool>>
       componentStorages;
 
-  // template <typename T> std::unordered_map<Entity, T> &getComponentStorage()
-  // { static std::unordered_map<Entity, T> storage; return storage;
-  // }
   template <typename T> SparseSet<T> &getComponentStorage() {
     std::unique_ptr<ComponentPool> &ptr =
         componentStorages[std::type_index(typeid(T))];

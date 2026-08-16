@@ -29,6 +29,12 @@ public:
     m_reg.setResource(m_window);
   }
   ~Engine() {}
+
+  Engine(const Engine &) = delete;
+  Engine &operator=(const Engine &) = delete;
+  Engine(Engine &&) = delete;
+  Engine &operator=(Engine &&) = delete;
+
   bool init(const char *title, int width, int height);
   void update();
   void render();

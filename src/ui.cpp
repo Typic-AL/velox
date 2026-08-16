@@ -30,7 +30,7 @@ void handleButtonPresses(Registry &reg, Input &input) {
       continue;
 
     if (!input.wasMouseJustReleased(LMB))
-      return;
+      continue;
 
     button.callback(reg);
     button.pressed = false;

@@ -28,6 +28,11 @@ public:
     SDL_DestroyWindow(m_window);
   }
 
+  RenderWindow(const RenderWindow &) = delete;
+  RenderWindow &operator=(const RenderWindow &) = delete;
+  RenderWindow(RenderWindow &&) = delete;
+  RenderWindow &operator=(RenderWindow &&) = delete;
+
   bool init(const char *title, int w, int h);
   void clear(SDL_Color color);
   void present() {SDL_RenderPresent(m_renderer);}

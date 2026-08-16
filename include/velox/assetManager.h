@@ -103,7 +103,7 @@ public:
   void setAssetsPath(std::string path) { m_assetsPath = path; }
   bool parseManifest();
 
-  SDL_Texture *idToTex(TextureID id);
+  SDL_Texture *idToTex(const TextureID &id);
   SDL_Texture *loadTextureFromPath(const std::string &path);
   SDL_Texture *getTextTex(const std::string &text, FontID id, int size,
                           SDL_Color color);

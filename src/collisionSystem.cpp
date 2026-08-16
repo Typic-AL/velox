@@ -7,7 +7,8 @@
 namespace vl {
 
 bool checkLayer(Collider &col1, Collider &col2) {
-  if (col1.layer >= 32 || col2.layer >= 32) {
+  if (col1.layer < 0 || col2.layer < 0 || col1.layer >= 32 ||
+      col2.layer >= 32) {
     return false;
   }
   return (col1.mask & (1u << col2.layer)) && (col2.mask & (1u << col1.layer));

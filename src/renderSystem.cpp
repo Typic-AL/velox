@@ -171,7 +171,7 @@ void collectTilemaps(Registry &reg, RenderContext &ctx,
           if (idx >= static_cast<int>(layer.data.size()))
             continue;
 
-          int gid = layer.data[idx];
+          int gid = layer.data[idx] & 0x1FFFFFFF;
           if (gid == 0)
             continue;
 

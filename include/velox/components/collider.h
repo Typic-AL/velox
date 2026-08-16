@@ -22,10 +22,13 @@ struct Collider {
   CollisionCallback onExit = {};
 };
 
-inline int createlayerMask(std::vector<int> layers, bool exclude = false) {
-  int mask = exclude ? 0 : ~0;
+inline int createLayerMask(const std::vector<int> &layers, bool exclude = false) {
+  int mask = exclude ? ~0 : 0;
   for (int layer : layers) {
-    mask |= ((exclude ? 0 : 1) << layer);
+    if (exclude)
+      mask &= ~(1 << layer);
+    else
+      mask |= (1 << layer);
   }
   return mask;
 }

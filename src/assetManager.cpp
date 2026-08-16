@@ -117,19 +117,28 @@ void AssetManager::parseAudio(const json &config) {
   }
 }
 
-SDL_Texture *AssetManager::idToTex(TextureID id) {
-  if (m_texCache.find(id) != m_texCache.end())
-    return m_texCache[id].get();
-  SDL_Surface *surface = IMG_Load(m_texMap[id].c_str());
+SDL_Texture *AssetManager::idToTex(const TextureID &id) {
+  auto cached = m_texCache.find(id);
+  if (cached != m_texCache.end())
+    return cached->second.get();
+
+  auto pathIt = m_texMap.find(id);
+  if (pathIt == m_texMap.end()) {
+    SDL_Log("[Asset Manager] Unknown texture id '%s'\n", id.c_str());
+    return nullptr;
+  }
+  const std::string &path = pathIt->second;
+
+  SDL_Surface *surface = IMG_Load(path.c_str());
   if (!surface)
     SDL_Log("[Asset Manager] Unable to load image %s! SDL_image Error: %s\n",
-            m_texMap[id].c_str(), SDL_GetError());
+            path.c_str(), SDL_GetError());
   else {
     SDL_Texture *tex =
         SDL_CreateTextureFromSurface(m_renderWindow->getRen(), surface);
     if (!tex) {
-      SDL_Log("Unable to create texture from %s! SDL Error: %s\n",
-              m_texMap[id].c_str(), SDL_GetError());
+      SDL_Log("Unable to create texture from %s! SDL Error: %s\n", path.c_str(),
+              SDL_GetError());
     }
 
     SDL_DestroySurface(surface);
@@ -240,6 +249,11 @@ const SpriteAnimation &AssetManager::idToAnim(AnimID id) {
   SDL_Texture *sheet = idToTex(data["TextureID"]);
   int rows = data["rows"];
   int cols = data["columns"];
+
+  if (rows <= 0 || cols <= 0) {
+    throw std::runtime_error(
+        "[Asset Manager] Invalid rows/columns in animation file for " + id);
+  }
 
   if (isSet)
     data = data[animKey];

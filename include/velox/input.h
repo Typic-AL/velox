@@ -50,12 +50,12 @@ public:
         (float)window.getScreenHeight() / window.getReferenceHeight();
   }
 
-  bool getKeyDown(SDL_Scancode key) { return m_keyboard[key]; }
+  bool getKeyDown(SDL_Scancode key) const { return m_keyboard[key]; }
 
   bool getMouseDown(MouseButton mouseButton) const;
   bool wasMouseJustPressed(MouseButton mouseButton) const;
   bool wasMouseJustReleased(MouseButton mouseButton) const;
-  glm::vec2 getMousePos() { return m_mousePos; }
+  glm::vec2 getMousePos() const { return m_mousePos; }
 };
 
 } // namespace vl
