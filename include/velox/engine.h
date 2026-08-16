@@ -1,6 +1,7 @@
 #pragma once
 
 #include "velox/assetManager.h"
+#include "velox/audioMixer.h"
 #include "velox/input.h"
 #include "velox/registry.h"
 #include "velox/renderWindow.h"
@@ -13,6 +14,7 @@ class Engine {
 private:
   RenderWindow m_window;
   AssetManager m_assetMan = AssetManager(&m_window);
+  AudioMixer m_audioMixer;
   RenderContext renderCtx{&m_window, &m_assetMan};
   Registry m_reg;
   SceneManager m_sceneMan = SceneManager(m_reg);
@@ -23,6 +25,7 @@ public:
     m_reg.setResource(m_input);
     m_reg.setResource(m_sceneMan);
     m_reg.setResource(m_assetMan);
+    m_reg.setResource(m_audioMixer);
     m_reg.setResource(m_window);
   }
   ~Engine() {}

@@ -26,6 +26,7 @@ src = [
   'src/ui.cpp',
   'src/space.cpp',
   'src/tilemap.cpp',
+  'src/audioMixer.cpp',
 ]
 
 velox = static_library(

@@ -53,44 +53,6 @@ bool AssetManager::parseManifest() {
   }
 }
 
-bool AssetManager::initAudio() {
-  if (!MIX_Init()) {
-    SDL_Log("Couldn't init SDL_mixer: %s", SDL_GetError());
-    return false;
-  }
-
-  m_mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
-  if (!m_mixer) {
-    SDL_Log("Couldn't create mixer: %s", SDL_GetError());
-    return false;
-  }
-
-  m_trackPool.reserve(defaultTrackPoolSize);
-  for (size_t i = 0; i < defaultTrackPoolSize; i++) {
-    MIX_Track *raw = MIX_CreateTrack(m_mixer);
-    if (raw) {
-      m_trackPool.emplace_back(raw, trackDeleter);
-    }
-  }
-  return true;
-}
-
-MIX_Track *AssetManager::getFreeTrack() {
-  for (auto &track : m_trackPool) {
-    if (!MIX_TrackPlaying(track.get()))
-      return track.get();
-
-    MIX_Track *raw = MIX_CreateTrack(m_mixer);
-    if (!raw) {
-      SDL_Log("Couldn't create track: %s", SDL_GetError());
-      return nullptr;
-    }
-
-    m_trackPool.emplace_back(raw, trackDeleter);
-    return m_trackPool.back().get();
-  }
-}
-
 void AssetManager::parseTextures(const json &config) {
   if (!config.contains("textures") || !config["textures"].is_object()) {
     std::cout << "[Asset Manager] No 'textures' section found or it's not a "
@@ -307,14 +269,31 @@ const SpriteAnimation &AssetManager::idToAnim(AnimID id) {
   return m_animCache[id];
 }
 
-MIX_Audio *AssetManager::idToAudio(AudioID id) {
-  MIX_Audio *audio = nullptr;
-  audio = MIX_LoadAudio(m_mixer, m_audioMap[id].c_str(), false);
+MIX_Audio *AssetManager::idToAudio(const AudioID &id, MIX_Mixer *mixer) {
+  auto it = m_audioCache.find(id);
+  if (it != m_audioCache.end())
+    return it->second.get();
 
-  if (!audio)
-    SDL_Log("Couldn't load %s: %s", m_audioMap[id].c_str(), SDL_GetError());
+  if (!mixer) {
+    SDL_Log("[Asset Manager] idToAudio called with null mixer");
+    return nullptr;
+  }
 
-  return audio;
+  auto pathIt = m_audioMap.find(id);
+  if (pathIt == m_audioMap.end()) {
+    SDL_Log("[Asset Manager] Unknown audio id '%s'\n", id.c_str());
+    return nullptr;
+  }
+
+  MIX_Audio *audio = MIX_LoadAudio(mixer, pathIt->second.c_str(), false);
+  if (!audio) {
+    SDL_Log("Couldn't load %s: %s", pathIt->second.c_str(), SDL_GetError());
+    return nullptr;
+  }
+
+  m_audioCache[id] =
+      std::unique_ptr<MIX_Audio, decltype(audioDeleter)>(audio, audioDeleter);
+  return m_audioCache[id].get();
 }
 
 void AssetManager::parseTilemaps(const json &config) {

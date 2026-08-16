@@ -33,11 +33,6 @@ inline auto fontDeleter = [](TTF_Font *font) {
     TTF_CloseFont(font);
 };
 
-inline auto trackDeleter = [](MIX_Track *track) {
-  if (track)
-    MIX_DestroyTrack(track);
-};
-
 inline auto audioDeleter = [](MIX_Audio *audio) {
   if (audio)
     MIX_DestroyAudio(audio);
@@ -92,10 +87,6 @@ private:
   std::unordered_map<TilemapID, std::string> m_tilemapMap;
   std::unordered_map<TilemapID, TilemapData> m_tilemapCache;
 
-  std::vector<std::unique_ptr<MIX_Track, decltype(trackDeleter)>> m_trackPool;
-  static constexpr size_t defaultTrackPoolSize = 20;
-  MIX_Mixer *m_mixer;
-
   std::string m_assetsPath = "assets.json";
 
   RenderWindow *m_renderWindow = nullptr;
@@ -118,9 +109,7 @@ public:
                           SDL_Color color);
   TTF_Font *idToFont(FontID id, int size);
 
-  MIX_Track *getFreeTrack();
-  MIX_Audio *idToAudio(AudioID id);
-  bool initAudio();
+  MIX_Audio *idToAudio(const AudioID &id, MIX_Mixer *mixer);
 
   const SpriteAnimation &idToAnim(AnimID id);
   const TilemapData &idToTilemap(TilemapID id);
