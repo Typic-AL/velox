@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../components/collider.h"
 #include "velox/registry.h"
 #include <set>

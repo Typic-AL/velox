@@ -2,8 +2,11 @@
 
 #include <functional>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <typeindex>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "componentStorage.h"
@@ -36,11 +39,11 @@ public:
     Registry &reg;
     std::vector<Entity> entities;
 
-    template <typename... Tags> ViewProxy &with() {
+    template <typename... Tags> ViewProxy with() && {
       std::erase_if(entities,
                     [&](Entity e) { return (!reg.has<Tags>(e) || ...); });
 
-      return *this;
+      return std::move(*this);
     }
 
     template <bool WithEntity> struct Iterator {

@@ -8,16 +8,12 @@
 #include "components/animation.h"
 #include "components/tilemap.h"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 #include "resourceIDs.h"
 #include "util.h"
-
-#include "nlohmann/json.hpp"
-using json = nlohmann::json;
 
 namespace vl {
 
@@ -90,12 +86,6 @@ private:
   std::string m_assetsPath = "assets.json";
 
   RenderWindow *m_renderWindow = nullptr;
-
-  void parseTextures(const json &config);
-  void parseFonts(const json &config);
-  void parseAnims(const json &config);
-  void parseAudio(const json &config);
-  void parseTilemaps(const json &config);
 
 public:
   AssetManager(RenderWindow *renderWindow) : m_renderWindow(renderWindow) {}

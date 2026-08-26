@@ -1,21 +1,11 @@
 #pragma once
 
-#include "../time.h"
-#include "velox/components/core.h"
-#include "velox/registry.h"
 namespace vl {
 
-inline void applyVelocity(Registry &reg) {
-  for (auto [rb, t] : reg.view<Rigidbody, Transform>()) {
-    t.prevPos = t.pos;
-    t.pos += rb.vel;
-  }
-}
+class Registry;
 
-inline void interpolatePosition(Registry &reg) {
-  for (auto [rb, t] : reg.view<Rigidbody, Transform>()) {
-    t.lPos = glm::mix(t.prevPos, t.pos, Time::alpha);
-  }
-}
+void applyVelocity(Registry &reg);
+
+void interpolatePosition(Registry &reg);
 
 } // namespace vl

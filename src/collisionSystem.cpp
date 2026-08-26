@@ -3,6 +3,7 @@
 #include "velox/components/core.h"
 #include "velox/registry.h"
 #include <algorithm>
+#include <glm/geometric.hpp>
 
 namespace vl {
 

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "velox/systems/renderSystem.h"
 #include "velox/renderWindow.h"
 

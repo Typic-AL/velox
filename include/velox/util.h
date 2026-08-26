@@ -1,11 +1,10 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
-#include <stdexcept>
+#include <cstddef>
+#include <functional>
 #include <string>
+#include <utility>
 
 namespace vl {
 
@@ -23,18 +22,6 @@ template <typename T1, typename T2> struct PairHash {
   }
 };
 
-inline std::string floatToStr(float value) {
-  std::ostringstream oss;
-  oss << std::fixed << std::setprecision(6) << value; // Up to 6 decimals
-  std::string str = oss.str();
+std::string floatToStr(float value);
 
-  // Trim trailing zeros
-  str.erase(str.find_last_not_of('0') + 1, std::string::npos);
-
-  // If it ends with '.', remove that too
-  if (!str.empty() && str.back() == '.')
-    str.pop_back();
-
-  return str;
-}
 } // namespace vl

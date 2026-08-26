@@ -1,10 +1,15 @@
 #include "velox/assetManager.h"
+
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
 #include <SDL3_mixer/SDL_mixer.h>
 #include <charconv>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 #include "velox/renderWindow.h"
 #include "velox/resourceIDs.h"
@@ -24,6 +29,24 @@ std::string percentDecode(std::string s) {
   }
   return s;
 }
+
+void parseSection(const json &config, const char *section,
+                  const char *label,
+                  std::unordered_map<std::string, std::string> &out) {
+  if (!config.contains(section) || !config[section].is_object()) {
+    std::cout << "[Asset Manager] No '" << section
+              << "' section found or it's not a map\n";
+    return;
+  }
+  for (const auto &[id, path] : config[section].items()) {
+    if (!path.is_string()) {
+      std::cerr << "[Asset Manager] Malformed " << label << " entry '" << id
+                << "' (path is not a string)\n";
+      continue;
+    }
+    out[id] = path.get<std::string>();
+  }
+}
 } // namespace
 
 namespace vl {
@@ -31,15 +54,27 @@ bool AssetManager::parseManifest() {
   try {
     std::ifstream fileStream(m_assetsPath);
     if (!fileStream.is_open()) {
-      throw std::runtime_error("[Asset Manager] Failed to open assets file");
+      std::cout << "[Asset Manager] No assets.json found at '" << m_assetsPath
+                << "', continuing with no assets\n";
+      return true;
     }
-    json config = json::parse(fileStream);
+
+    std::string content((std::istreambuf_iterator<char>(fileStream)),
+                        std::istreambuf_iterator<char>());
     fileStream.close();
-    parseTextures(config);
-    parseFonts(config);
-    parseAnims(config);
-    parseAudio(config);
-    parseTilemaps(config);
+
+    if (content.find_first_not_of(" \t\n\r") == std::string::npos) {
+      std::cout << "[Asset Manager] assets.json at '" << m_assetsPath
+                << "' is empty, continuing with no assets\n";
+      return true;
+    }
+
+    json config = json::parse(content);
+    parseSection(config, "textures", "texture", m_texMap);
+    parseSection(config, "fonts", "font", m_fontMap);
+    parseSection(config, "animations", "animation", m_animMap);
+    parseSection(config, "audio", "audio", m_audioMap);
+    parseSection(config, "tilemaps", "tilemap", m_tilemapMap);
     return true;
   } catch (const json::parse_error &e) {
     std::cerr << "[Asset Manager] JSON parsing error for assets.json: "
@@ -50,70 +85,6 @@ bool AssetManager::parseManifest() {
                  "parsing assets.json: "
               << e.what() << "\n";
     return false;
-  }
-}
-
-void AssetManager::parseTextures(const json &config) {
-  if (!config.contains("textures") || !config["textures"].is_object()) {
-    std::cout << "[Asset Manager] No 'textures' section found or it's not a "
-                 "map\n";
-    return;
-  }
-  for (const auto &[id, path] : config["textures"].items()) {
-    if (!path.is_string()) {
-      std::cerr << "[Asset Manager] Malformed texture entry '" << id
-                << "' (path is not a string)\n";
-      continue;
-    }
-    m_texMap[id] = path.get<std::string>();
-  }
-}
-
-void AssetManager::parseFonts(const json &config) {
-  if (!config.contains("fonts") || !config["fonts"].is_object()) {
-    std::cout << "[Asset Manager] No 'fonts' section found or it's not a "
-                 "map\n";
-    return;
-  }
-  for (const auto &[id, path] : config["fonts"].items()) {
-    if (!path.is_string()) {
-      std::cerr << "[Asset Manager] Malformed font entry '" << id
-                << "' (path is not a string)\n";
-      continue;
-    }
-    m_fontMap[id] = path.get<std::string>();
-  }
-}
-
-void AssetManager::parseAnims(const json &config) {
-  if (!config.contains("animations") || !config["animations"].is_object()) {
-    std::cout << "[Asset Manager] No 'animations' section found or it's not "
-                 "a map\n";
-    return;
-  }
-  for (const auto &[id, path] : config["animations"].items()) {
-    if (!path.is_string()) {
-      std::cerr << "[Asset Manager] Malformed animation entry '" << id
-                << "' (path is not a string)\n";
-      continue;
-    }
-    m_animMap[id] = path.get<std::string>();
-  }
-}
-
-void AssetManager::parseAudio(const json &config) {
-  if (!config.contains("audio") || !config["audio"].is_object()) {
-    std::cout << "[Asset Manager] No 'audio' section found or it's not a "
-                 "map\n";
-    return;
-  }
-  for (const auto &[id, path] : config["audio"].items()) {
-    if (!path.is_string()) {
-      std::cerr << "[Asset Manager] Malformed audio entry '" << id
-                << "' (path is not a string)\n";
-      continue;
-    }
-    m_audioMap[id] = path.get<std::string>();
   }
 }
 
@@ -308,22 +279,6 @@ MIX_Audio *AssetManager::idToAudio(const AudioID &id, MIX_Mixer *mixer) {
   m_audioCache[id] =
       std::unique_ptr<MIX_Audio, decltype(audioDeleter)>(audio, audioDeleter);
   return m_audioCache[id].get();
-}
-
-void AssetManager::parseTilemaps(const json &config) {
-  if (!config.contains("tilemaps") || !config["tilemaps"].is_object()) {
-    std::cout << "[Asset Manager] No 'tilemaps' section found or it's not a "
-                 "map\n";
-    return;
-  }
-  for (const auto &[id, path] : config["tilemaps"].items()) {
-    if (!path.is_string()) {
-      std::cerr << "[Asset Manager] Malformed tilemap entry '" << id
-                << "' (path is not a string)\n";
-      continue;
-    }
-    m_tilemapMap[id] = path.get<std::string>();
-  }
 }
 
 const TilemapData &AssetManager::idToTilemap(TilemapID id) {

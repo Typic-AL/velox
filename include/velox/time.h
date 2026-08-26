@@ -1,43 +1,42 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#include <chrono>
 
 namespace vl {
 
 namespace Time {
-using Clock = std::chrono::high_resolution_clock;
-using Duration = std::chrono::duration<float>;
-using TimePoint = std::chrono::time_point<Clock>;
-
 inline int targetFPS = 144;
 
-inline TimePoint previousTime = Clock::now();
-inline TimePoint currentTime = Clock::now();
+inline Uint64 previousTime = SDL_GetPerformanceCounter();
+inline Uint64 currentTime = SDL_GetPerformanceCounter();
 
 inline float accumulator = 0.0f;
 inline float alpha = 0.0f;
 
 inline float deltaTime = 0.0f;
 
+inline float secondsSince(Uint64 start, Uint64 end) {
+  return static_cast<float>(end - start) /
+         static_cast<float>(SDL_GetPerformanceFrequency());
+}
+
 inline void beginFrame() {
-  currentTime = Clock::now();
-  Duration frameTime = currentTime - previousTime;
-  deltaTime = frameTime.count();
+  currentTime = SDL_GetPerformanceCounter();
+  float frameTime = secondsSince(previousTime, currentTime);
+  deltaTime = frameTime;
   previousTime = currentTime;
 
   // Clamp to avoid spiral of death
   const float maxFrameTime = 0.25f;
-  accumulator += std::min(frameTime.count(), maxFrameTime);
+  accumulator += frameTime < maxFrameTime ? frameTime : maxFrameTime;
 }
 
 inline void delayIfNeeded() {
-  auto frameEnd = Clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-      frameEnd - currentTime);
+  Uint64 frameEnd = SDL_GetPerformanceCounter();
 
   Uint32 desiredMS = static_cast<Uint32>(1000.0f / targetFPS);
-  Uint32 elapsedMS = static_cast<Uint32>(elapsed.count());
+  Uint32 elapsedMS =
+      static_cast<Uint32>(secondsSince(currentTime, frameEnd) * 1000.0f);
 
   if (elapsedMS < desiredMS) {
     SDL_Delay(desiredMS - elapsedMS);
@@ -63,7 +62,8 @@ inline bool shouldUpdate() {
 }
 
 inline void stepPhysics() {
-  Time::alpha = std::clamp(Time::accumulator / fixedDeltaTime, 0.0f, 1.0f);
+  float a = Time::accumulator / fixedDeltaTime;
+  Time::alpha = a < 0.0f ? 0.0f : (a > 1.0f ? 1.0f : a);
 }
 } // namespace Physics
 

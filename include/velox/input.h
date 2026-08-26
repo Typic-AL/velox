@@ -1,10 +1,9 @@
 #pragma once
 
-#include "glm/glm.hpp"
+#include <glm/vec2.hpp>
 #include "velox/renderWindow.h"
 #include <SDL3/SDL.h>
 
-#include <iostream>
 #include <vector>
 
 namespace vl {

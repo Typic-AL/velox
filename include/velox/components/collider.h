@@ -3,7 +3,7 @@
 #include "velox/entity.h"
 #include <SDL3/SDL.h>
 #include <functional>
-#include <glm/glm.hpp>
+#include <glm/vec2.hpp>
 #include <unordered_map>
 
 namespace vl {

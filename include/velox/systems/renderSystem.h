@@ -1,6 +1,5 @@
 #pragma once
 
-#include "velox/assetManager.h"
 #include "velox/components/ui/ui.h"
 #include "velox/space.h"
 #include <vector>
@@ -9,6 +8,7 @@ namespace vl {
 
 class RenderWindow;
 class Registry;
+class AssetManager;
 
 struct RenderCommand {
   SDL_Texture *tex = nullptr;

@@ -17,6 +17,10 @@ velox_inc = include_directories('include')
 
 src = [
   'src/renderWindow.cpp',
+  'src/util.cpp',
+  'src/camera.cpp',
+  'src/coreSystems.cpp',
+  'src/audioSource.cpp',
   'src/assetManager.cpp',
   'src/renderSystem.cpp',
   'src/engine.cpp',
